@@ -1,6 +1,5 @@
--- Core tenant and sales schema for the MVP.
--- Inventory is intentionally not decremented by this migration; stock movement
--- rules need an explicit product/operation policy before they can be enabled.
+-- Core tenant, product, sales, and inventory schema for the MVP.
+-- Sale creation must validate and decrement stock in one database transaction.
 
 create extension if not exists pgcrypto;
 
@@ -17,7 +16,7 @@ create table public.products (
   name text not null check (length(trim(name)) between 1 and 160),
   sale_price_cents integer not null check (sale_price_cents >= 0),
   unit_cost_cents integer check (unit_cost_cents is null or unit_cost_cents >= 0),
-  stock numeric(12,3) check (stock is null or stock >= 0),
+  stock numeric(12,3) not null default 0 check (stock >= 0),
   created_at timestamptz not null default now(),
   unique (id, business_id)
 );

@@ -1,71 +1,63 @@
-# Trabajo paralelo: tres roles
+# Trabajo paralelo — Knectan / MicroAI
 
-Las instrucciones detalladas están separadas por persona: [Rol 1](roles/rol-1-ia-multimodal-y-datos.md), [Rol 2](roles/rol-2-orquestacion-auth-mensajeria.md) y [Rol 3](roles/rol-3-frontend-backend-despliegue.md).
+Actualizado: 14 de noviembre de 2026. Canal principal: **WhatsApp mediante Infobip**. El comerciante opera dentro del chat. Flows queda fuera del MVP actual; la web sirve para paneles y apoyo.
 
-## Reglas de coordinación
+Leer esta guía y [los contratos](integration-contracts.md). Después continuar con [rol 1](roles/rol-1-ia-multimodal-y-datos.md), [rol 2](roles/rol-2-orquestacion-auth-mensajeria.md) o [rol 3](roles/rol-3-frontend-backend-despliegue.md).
 
-- Trabajar en ramas separadas y hacer PRs pequeños. No editar simultáneamente el mismo archivo; los contratos compartidos se acuerdan primero y se cambian mediante PR coordinado.
-- Los tres roles pueden iniciar en paralelo con los contratos de este documento. El rol 3 publica mocks/adaptadores para que frontend y despliegue no esperen a proveedores externos.
-- Mantener módulos de proveedor detrás de interfaces. Nunca incluir secretos en el navegador ni registrar tokens, audio o imágenes en logs.
-- Acuerdo monetario inicial: cantidades en MXN como enteros en centavos (`*_cents`); timestamps ISO UTC; errores con `{ code, message }`.
-- Los contratos TypeScript compartidos viven en `src/contracts/`; propietario primario: rol 3. Los cambios se discuten por PR.
-- El POS conversacional se captura con WhatsApp Flows: sus respuestas se normalizan en el webhook/orquestación (rol 2), se validan y se guardan mediante operaciones del dominio (rol 1). El frontend web conserva su propio formulario pero comparte el mismo contrato de venta.
+## Estado de partida
 
-## Rol 1 — IA multimodal, interpretación y datos
+| Parte | Estado y evidencia | Pendiente |
+| --- | --- | --- |
+| Datos / R1 | Migraciones 001–003 aplicadas localmente; repositorios de ventas, eventos y borradores; TypeScript y comprobaciones SQL pasaron | Parser, lookup de negocio, catálogo/reportes y medios |
+| Infobip / R2 | El plan recibido reporta un envío real recibido por el destinatario | Adaptador, autenticación del webhook, entrada real y conversación automática |
+| HTTP / R3 | Esqueleto Next.js con páginas iniciales | Contratos TS, endpoint público, paneles y despliegue |
+| Supabase alojado | Repositorio vinculado a `microai-dev` | No asumir migraciones locales desplegadas allí |
 
-**Objetivo:** interpretar texto, audio e imágenes con salida estructurada y persistir el dominio del negocio.
+Varios archivos de `src/`, migraciones y comprobaciones siguen sin seguimiento de Git: incluirlos en los PRs. Documentar una función no sustituye entregar su implementación.
 
-**Responsabilidades:** parser determinista primero; adaptador IA (Bedrock/modelo configurable) como respaldo; entrada de audio e imagen (transcripción/OCR/interpretación); validación y nivel de confianza; esquema, migraciones SQL, índices, RLS y consultas/repositorios de ventas, artículos, gastos e inventario.
+## Trabajo inmediato en paralelo
 
-**Carpetas:** `src/modules/interpretation/`, `src/modules/media/`, `src/modules/data/`, `supabase/migrations/`.
+| Rol | Primera entrega | Avanza usando | Entrega a otros |
+| --- | --- | --- | --- |
+| R1 | Parser de texto, catálogo y lookup de negocio por número | Catálogo fixture o base local | Intérprete real y consultas para R2 |
+| R2 | Adaptador Infobip, normalización/autenticación y confirmaciones | Intérprete mock y repositorios existentes R1 | Handler y fixtures sanitizados para R3 |
+| R3 | Contratos TS, transporte HTTP y URL pública | Handler mock inyectado | Ruta desplegada y configuración para R2 |
 
-**Entrega/contrato:** `InterpretationRequest` acepta `{ text?, media: { kind: "audio"|"image", storageKey, mimeType }[] }`; `InterpretationResult` devuelve `{ intent, confidence, data, needsConfirmation, clarification? }`. El módulo de datos ofrece operaciones de dominio transaccionales; nunca expone credenciales de servicio al cliente.
+## Propiedad de archivos
 
-**Fuera de este rol:** endpoints HTTP, sesiones/login, envío y recepción de WhatsApp, pantallas.
+| Propietario | Archivos |
+| --- | --- |
+| R1 | `src/modules/interpretation/`, `src/modules/media/`, `src/modules/data/`, `supabase/`, `docs/local-database.md`, documento R1 |
+| R2 | `src/modules/messaging/`, `src/modules/orchestration/`, `src/modules/auth/`, documento R2 |
+| R3 | `app/`, `components/`, `src/modules/http/`, `src/contracts/`, configuración raíz, `.env.example`, despliegue, documento R3 |
+| R3 coordina cambios compartidos | Esta guía, contratos de integración, README y dependencias raíz |
 
-## Rol 2 — Orquestación de IA, autenticación y mensajería
+El parser de **payload Infobip** es de R2; el intérprete de **ventas del comerciante** es de R1; validación y transporte HTTP son de R3. No duplicar esas implementaciones.
 
-**Objetivo:** conectar canales e identidad con interpretación y operaciones del negocio.
+## Coordinación
 
-**Responsabilidades:** flujo de conversación que invoca al rol 1, estrategia de confirmación antes de persistir entradas inciertas; autenticación de distribuidores y canje de enlace temporal para comerciantes; sesiones seguras; webhook WhatsApp (verificación, firma, deduplicación), respuestas y política de consentimiento. Es propietario de integración con proveedores de identidad/mensajería.
+1. Cada integrante usa rama y checkout/worktree propios. No cambiar la rama de una carpeta usada por otra persona/agente.
+2. Primeros PRs: R1 publica repositorios y migraciones existentes; R3 publica tipos mínimos documentados. R2 empieza con interfaces locales compatibles mientras se integran.
+3. Entregar PRs pequeños con archivos completos, instrucciones reproducibles, fixtures sanitizados y verificaciones reales. Evitar copias divergentes de contratos.
+4. Para modificar una carpeta ajena, describir el cambio de interfaz en el PR y coordinar con el propietario; continuar las tareas independientes.
+5. Cada persona configura sus variables locales. Secretos fuera de Git; datos ficticios en fixtures.
+6. R1 controla el orden de migraciones: conservar aplicadas y añadir nuevas. Una sola persona designada despliega migraciones a `microai-dev` tras comprobar el destino; R3 configura el despliegue contra ese mismo entorno.
+7. R3 coordina dependencias para evitar ediciones simultáneas a `package.json` y lockfile; incluir ambos cuando corresponda.
 
-**Carpetas:** `src/modules/orchestration/`, `src/modules/auth/`, `src/modules/messaging/`; rutas HTTP compartidas se acuerdan con rol 3.
+## Hitos
 
-**Contrato:** recibe identidad ya resuelta como `Actor { businessId, userId?, channel }`; llama interpretación y repositorios por interfaces, sin SQL directo. Webhooks idempotentes por ID del evento. Debe responder rápido al proveedor y procesar el trabajo lento por una cola/adaptador; para demo se permite procesamiento síncrono acotado con límite de tiempo.
+- **A — Independencia:** R1 interpreta fixtures; R2 procesa mensajes con dependencias mock; R3 prueba transporte con handler mock. Ninguno necesita credenciales ajenas.
+- **B — Integración local:** fixture entrante -> intérprete real -> borrador -> confirmar -> una venta y stock actualizado. Probar reintentos y dos mensajes distintos confirmando el mismo borrador.
+- **C — Transporte real:** R3 publica la URL; R2 configura enrutamiento y demuestra entrada y respuesta real. Verificar mensajes libres, no solo palabra clave de activación.
+- **D — Demo WhatsApp:** “Vendí 3 cocas y 2 panes” -> resumen $90 -> confirmar -> dos artículos y descuento -> ventas del día. Separar resultados de mocks y pruebas reales.
 
-**Fuera de este rol:** dueño del esquema de negocio, componentes visuales y despliegue.
+Si Infobip no recibe mensajes, continuar A/B y documentar el bloqueo. Una demo web no demuestra recepción WhatsApp.
 
-## Rol 3 — Frontend, backend HTTP y despliegue
+## Reglas comunes
 
-**Objetivo:** construir las interfaces, exponer contratos HTTP y mantener ejecutable e integrable la app.
-
-**Responsabilidades:** chatbot web y panel distribuidor; formularios accesibles con captura de texto/audio/imagen; rutas API Next.js y validación de request/response; contratos compartidos y mocks; configuración de entorno, CI/build y despliegue Vercel.
-
-**Carpetas:** `app/`, `components/`, `src/contracts/`, `src/modules/http/`, configuración raíz y documentación de despliegue.
-
-**Contrato:** endpoints validan payloads (Zod), obtienen el actor desde sesión verificada y no aceptan `businessId` confiado del navegador. Usan servicios de orquestación/dominio por interfaces. Mantiene un modo mock local para que la interfaz avance antes de que estén listas las integraciones.
-
-**Fuera de este rol:** prompts/modelos, políticas de WhatsApp, esquema/migraciones y lógica contable.
-
-## Secuencia de integración
-
-1. **Día 0, en paralelo:** acordar tipos de `Actor`, `InterpretationRequest/Result`, `SaleInput` y errores; rol 3 prepara endpoints mock, rol 1 define migración de venta mínima, rol 2 define puertos de auth/mensajería.
-2. **Integración temprana:** rol 1 entrega repositorio transaccional + parser fixture; rol 2 conecta conversación a puertos; rol 3 conecta UI a endpoints estables.
-3. **End-to-end:** reemplazar mocks por implementaciones reales mediante adaptadores; validar registro y consulta de una venta desde web, luego canal WhatsApp y medios.
-4. **Cierre:** desplegar demo web sin exigir Bedrock ni credenciales de Meta; las capacidades externas quedan configurables.
-
-## Árbol sugerido por propiedad
-
-```text
-app/                         # R3: páginas y adaptadores HTTP
-components/                  # R3: UI
-src/contracts/               # R3 coordina; cambios acordados por todos
-src/modules/interpretation/  # R1
-src/modules/media/            # R1
-src/modules/data/             # R1
-src/modules/orchestration/    # R2
-src/modules/auth/             # R2
-src/modules/messaging/        # R2
-supabase/migrations/          # R1
-docs/                         # contratos y decisiones compartidas
-```
+- Un usuario propietario por negocio; número WhatsApp verificado y normalizado como identificación principal; UUID como clave interna. Nunca aceptar identidad de negocio desde el texto/formulario.
+- Precio editable solo desde catálogo y conservado como snapshot en la venta.
+- Toda venta conversacional del MVP requiere resumen y confirmación explícita, incluso con confianza alta.
+- Stock obligatorio y no negativo; falta de stock rechaza la venta completa. No poner a cero unidades que todavía existen.
+- MXN en centavos enteros; cantidades hasta tres decimales; fechas ISO UTC. Ventas y utilidad son conceptos distintos.
+- Bedrock, audio, imágenes, distribuidores y publicidad siguen al recorrido de texto confirmado; no bloquean ese recorrido.

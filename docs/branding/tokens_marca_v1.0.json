@@ -1,0 +1,69 @@
+{
+  "marca": "Knectan",
+  "version": "1.0",
+  "fecha": "2026-11-14",
+  "estado": "referencia_del_manual_v1.0",
+  "advertencia": "Valores HEX y RGB utilizados en la edición 1.0. Convertir a impresión con perfil ICC de destino.",
+  "colores": {
+    "forest-900": {
+      "hex": "#093227",
+      "rgb": [
+        9,
+        50,
+        39
+      ]
+    },
+    "mint-500": {
+      "hex": "#50AE7A",
+      "rgb": [
+        80,
+        174,
+        122
+      ]
+    },
+    "green-700": {
+      "hex": "#117048",
+      "rgb": [
+        17,
+        112,
+        72
+      ]
+    },
+    "cream-100": {
+      "hex": "#FCF4E3",
+      "rgb": [
+        252,
+        244,
+        227
+      ]
+    },
+    "gold-300": {
+      "hex": "#F4D29D",
+      "rgb": [
+        244,
+        210,
+        157
+      ]
+    }
+  },
+  "logo": {
+    "archivo": "recursos/knectan-logo-referencia.png",
+    "ancho_px": 1536,
+    "alto_px": 1024,
+    "proporcion_lienzo": "3:2",
+    "fuente_lettering": "no identificada",
+    "proteccion": "10% del ancho del lienzo completo, medido desde el borde del archivo",
+    "ancho_referencia_pantalla_px": 240,
+    "ancho_referencia_impresion_mm": 45
+  },
+  "interfaz": {
+    "radio_tarjeta_px": 12,
+    "trazo_icono_px": 2,
+    "base_icono_px": 24,
+    "unidad_espaciado_px": 8,
+    "cuerpo_inicial_px": 16,
+    "familia_titulares": "Nunito Sans",
+    "familia_cuerpo": "Manrope",
+    "alternativa": "Plus Jakarta Sans"
+  }
+}

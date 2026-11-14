@@ -6,9 +6,13 @@
 
 **Audios e imágenes se almacenarán en Supabase Storage privado.** No configurar AWS S3 para el MVP; queda como alternativa futura. Adaptador de carga/lectura implementado, metadatos en `business_media`, buckets `business-audio` y `business-images`. Migración **008 aplicada y comprobada localmente y en microai-dev**. El bootstrap HTTP admite `WHATSAPP_AUDIO_ENABLED=true` para lector Supabase + OpenAI, y R2 ya conecta la descarga de AUDIO/IMAGE según contrato del SDK; falta contrastar el evento real y su enrutamiento. Tickets: extracción/revisión con elección explícita de tipo; ver `docs/receipt-interpretation.md`. Ver `docs/media-storage.md`.
 
+## Estado vigente R1 — tickets a borradores
+
+Tickets ya preparan propuestas después de elegir tipo: VENTA resuelve catálogo/aclaraciones y crea borrador versionado; GASTO prepara propuesta cancelable. Siempre requieren confirmación textual posterior. `receipt_reviews` conserva snapshot y clasificación por negocio/hash exacto para impedir duplicados de imagen idéntica y uso simultáneo como venta/gasto. Migraciones **009–010 aplicadas localmente y en microai-dev**, con aceptación SQL remota aprobada y dry-run sin pendientes. 137 pruebas y build aprobados; Supabase local real aprobado. OpenAI real sigue sin probar por falta de clave/fixtures. Ver `docs/receipt-interpretation.md` y `docs/openai-acceptance.md`. Compras/recepción de inventario, creación asistida de productos y respaldo de IA para texto siguen pendientes.
+
 ## Estado más reciente — migraciones alojadas comprobadas
 
-Las migraciones **001–008 ya están aplicadas en `microai-dev`** (`hfcetxrktdorebepttof`). El dry-run posterior no tiene pendientes. La comprobación SQL transaccional remota pasó y revirtió sus fixtures; hay 12 tablas públicas con RLS y las funciones privilegiadas no son ejecutables por `anon`/`authenticated`. Ver el cierre al final de este documento. Las menciones anteriores a remoto pendiente describen el estado histórico. El despliegue HTTPS y WhatsApp real siguen pendientes.
+Las migraciones **001–010 ya están aplicadas en `microai-dev`** (`hfcetxrktdorebepttof`). El dry-run posterior no tiene pendientes. La comprobación SQL transaccional remota pasó y revirtió sus fixtures; hay 13 tablas públicas con RLS y las funciones privilegiadas no son ejecutables por `anon`/`authenticated`. Ver el cierre al final de este documento. Las menciones anteriores a remoto pendiente describen el estado histórico. El despliegue HTTPS y WhatsApp real siguen pendientes.
 
 ## Proyecto y objetivo
 
@@ -265,3 +269,22 @@ El usuario prefiere español claro, acciones concretas y continuidad autónoma. 
 - Único archivo con conflicto: `docs/parallel-work.md`; se conservó el estado comprobado de 001–008/medios y los avances R3. Se eliminó la referencia generada a `.next` en `next-env.d.ts` para mantener typecheck en checkout limpio.
 - Package npm ahora `knectan`. Validación posterior al merge: tipos/lint y 118 pruebas aprobadas (una integración local omitida por defecto), build aprobado y 10 E2E aprobadas en escritorio/móvil con demo mock. Se instaló Chromium headless de Playwright para ejecutarlas.
 - Estas verificaciones no prueban WhatsApp/OpenAI reales ni cambian el estado remoto de migraciones. La publicación Git debe comprobarse con `git status`/`git log`; no hubo despliegue de aplicación en este cierre.
+
+## Entrega R1 — conversión persistente de tickets y aceptación real preparada
+
+- Usuario pidió continuar los siguientes cambios R1. Se completó ticket revisado/clasificado → propuesta, sin confirmación automática. No se modificaron pantallas ni la demo web.
+- 009 agrega receipt_reviews y RPC de guardar/consultar/clasificar por remitente; snapshot único por negocio/SHA256 de imagen, plazo fijo de 15 min y clasificación serializada/fija. 010 retira permisos automáticos INSERT/UPDATE/TRUNCATE de service_role detectados por la aserción local; conserva SELECT/DELETE de mantenimiento. No se modificaron migraciones ya aplicadas.
+- 009–010 aplicadas y comprobadas localmente y en microai-dev tras dry-run de solo esas dos. Aceptación SQL con rollback aprobada en remoto, incluyendo identidad cruzada, expiración, inmutabilidad, clasificación y permisos. Dry-run posterior sin pendientes. No se enviaron imágenes a Storage remoto ni se desplegó la app.
+- Venta: interpretación estructurada por renglón, sin construir comandos de texto a partir del OCR; elecciones firmadas mantienen reviewId/selecciones. Moneda/total legibles y sin advertencias pendientes; cantidades/unidades, stock agregado y reconciliación de precios/importe/total/redondeos. No se inventan productos/precios ni carritos parciales. Clave de borrador receipt:<id>. Resumen conserva total impreso y precio vigente; RPC normal exige nueva versión si cambia precio.
+- Gasto: concepto/total extraídos visibles en propuesta, clave expense:receipt:<id> y timestamp del mensaje original, sin inferir zona/fecha contable del texto impreso. Reintentos no duplican, cancelar no permite reactivar la propuesta al reclasificar. COMPRA sigue solo identificada, sin gasto automático ni reposición.
+- Tipo fijo tras elección, snapshot inmutable y plazo no renovado al reenviar mismos bytes. No hay editor estructurado/corrección sobre snapshot ni deduplicación de fotos/crops diferentes del mismo ticket físico; correcciones por texto/imagen nueva. No borrar revisiones usadas sin preservar idempotencia/trazabilidad.
+- 137 pruebas aprobadas, dos integraciones opt-in omitidas por defecto; build aprobado. Integración local con DB/Storage/Auth reales aprobada: ticket a venta/gasto, duplicados, precio cambiado/confirmación obsoleta, cancelación y dos clasificaciones concurrentes. HTTP externos simulados. Fixtures limpiados.
+- Nuevo check-role1-openai.py y test opt-in usan adaptadores reales con un manifiesto local de archivos y expectativas revisadas. Requieren clave en entorno y --allow-upload; no escriben dominio ni envían WhatsApp. Se verificó la negativa a subir sin autorización; no se ejecutó OpenAI real porque la clave sigue ausente. Ver docs/openai-acceptance.md.
+- Descarga/retención/worker y aceptación externa siguen según cierre anterior. Trabajo R1 posterior: editor de correcciones, compras con inventario si se confirma alcance, creación asistida de productos y respaldo IA para texto.
+
+## Integración de configuración HTTP antes de publicar R1
+
+- Integrado sin conflictos el commit remoto `0e18fd6` (endpoint `/api/health`, errores HTTP/configuración de despliegue) con R1 `9f71964` (tickets persistentes a propuestas). No se descartó trabajo del equipo ni se hizo force push.
+- Verificaciones posteriores: tipos/lint y 148 pruebas aprobadas, dos integraciones opt-in omitidas; build aprobado y 12 E2E aprobadas en escritorio/móvil con demo mock.
+- El endpoint de salud responde por la app; no demuestra conectividad real de Infobip/OpenAI ni una venta WhatsApp. No hubo despliegue en este cierre.
+- Configuración local de este repositorio: `pull.rebase=false` para futuros pulls mediante merge; no se cambió configuración global. Confirmar publicación mediante `git status` y el historial remoto.

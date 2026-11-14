@@ -34,6 +34,6 @@ export function formatReceiptReview(value:ReceiptExtraction) {
       `${i.quantity??'?'} × ${clean(i.description)}: ${amount(i.line_total_cents)}`),`Total impreso: ${amount(receipt.total_cents)}`,
     ...receipt.warnings.map(w=>`Revisar: ${clean(w)}`),
     '¿Es una VENTA de tu negocio, una COMPRA a proveedor o un GASTO? Indica el tipo antes de registrar.',
-    'Esta primera etapa solo extrae datos: no crea productos, no modifica precios/stock y no registra ventas ni gastos. Para registrar una operación revisada, usa el flujo de texto con su resumen y confirmación. Las compras de inventario aún no tienen registro automático.',
+    'Elegir el tipo prepara una propuesta para revisar y confirmar; no crea productos ni modifica precios/stock por sí solo. Las compras de inventario aún no tienen registro automático.',
   ].join('\n');
 }

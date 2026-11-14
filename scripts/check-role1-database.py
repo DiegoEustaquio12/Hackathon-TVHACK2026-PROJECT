@@ -22,6 +22,7 @@ checks = [
     'onboarding-and-prices.sql',
     'standard-products-accounting.sql',
     'role2-storage.sql',
+    'receipt-reviews.sql',
 ]
 # Synthetic numbers, unique per execution. They are never messaged.
 phones = ['1999' + f'{secrets.randbelow(10**10):010d}' for _ in range(9)]
@@ -87,5 +88,5 @@ with tempfile.TemporaryDirectory(prefix='microai-db-check-') as folder:
         print(result.stderr, end='', file=sys.stderr)
     if result.returncode == 0:
         print('PASS: sales, stock, replay, shortage, tenant isolation, RLS, versioned prices, '
-              'products, expenses, reports, leases, links and permissions; fixtures rolled back.')
+              'products, expenses, reports, leases, links, receipt snapshots/classification and permissions; fixtures rolled back.')
     sys.exit(result.returncode)

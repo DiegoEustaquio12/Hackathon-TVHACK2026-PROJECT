@@ -72,3 +72,7 @@ El hito B está comprobado contra Supabase local con proveedor saliente simulado
 Audios e imágenes: **Supabase Storage privado** para el MVP; S3 aplazado. R1 entrega `createSupabaseMediaStore` y migración 008 (aplicada localmente y en microai-dev); R2 ya conecta descarga segura desde Infobip a `save`, pendiente de aceptación externa; R3 aplica configuración/flag de servidor y coordina el despliegue de la aplicación contra 008 ya aplicada. No implementar almacenamiento AWS paralelo. Ver [media-storage.md](media-storage.md).
 
 Actualización multimedia: 008 ya está aplicada y comprobada en microai-dev. Descarga Infobip AUDIO/IMAGE y primera extracción/revisión de tickets implementadas, con flags desactivados por defecto. Antes de producción faltan credenciales, HTTPS/enrutamiento y comprobar evento/redirecciones reales. La prueba local usa Supabase DB/Storage/Auth reales y HTTP externos simulados; no equivale a WhatsApp real. Ver [tickets](receipt-interpretation.md).
+
+## Entrega R1 de tickets a propuestas
+
+009–010 aplicadas en local/remoto. TIPO TICKET ahora prepara borrador de venta o propuesta cancelable de gasto, con snapshot/identidad persistentes y confirmación textual posterior. Compras siguen pendientes. 137 pruebas/build y Supabase local real aprobados; OpenAI/WhatsApp reales no comprobados. Ver [tickets](receipt-interpretation.md) y [aceptación real](openai-acceptance.md).

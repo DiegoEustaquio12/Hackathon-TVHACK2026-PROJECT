@@ -49,3 +49,5 @@ El endpoint entrega un evento autenticado por R2 al orquestador. Reportar prueba
 Panel de distribuidores, pedidos, acceso web complementario y mejoras visuales. No retrasar la URL pública requerida para WhatsApp por terminar esas pantallas.
 
 **Tickets, primera etapa:** extracción estructurada OpenAI y revisión con elección explícita VENTA/COMPRA/GASTO implementadas; no producen operaciones contables. Ventas/gastos conservan confirmación textual; registro de compras pendiente. 110 pruebas y webhook local con Supabase real aprobados, HTTP externos simulados. Falta aceptación externa y configuración operativa. Ver [tickets](../receipt-interpretation.md).
+
+**R1 tickets a borradores:** 009–010 ya aplicadas local/remoto, sin variables nuevas. Publicar la entrega de servidor cuando se configure el entorno; no sustituir el recorrido WhatsApp por demo. Ver [tickets](../receipt-interpretation.md).

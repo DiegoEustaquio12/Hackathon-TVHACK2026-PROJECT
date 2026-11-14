@@ -1,58 +1,71 @@
-# Primera etapa de interpretación de tickets
+# Tickets revisados a propuestas de venta o gasto
 
-## Alcance acordado
+## Recorrido implementado
 
-Se procesan tickets de ventas del comerciante y de compras/gastos. **El sistema pregunta el tipo antes de registrar cualquier operación.** Una foto no autoriza a crear ventas, gastos, productos, cambiar precios ni reponer inventario.
+Se aceptan tickets de ventas y de compras/gastos, pero **el comerciante elige el tipo antes de preparar una operación**. Una foto por sí sola no registra ventas/gastos, no crea productos ni modifica precios o inventario.
 
-Recorrido implementado: webhook Infobip autenticado → identidad/alta del negocio → descarga acotada desde Infobip → Supabase Storage privado → lectura por referencia y hash → extracción estructurada OpenAI → revisión por WhatsApp → elección explícita VENTA/COMPRA/GASTO.
+1. Infobip autenticado → negocio con alta explícita → descarga acotada → Supabase Storage privado.
+2. OpenAI extrae campos estructurados; el servidor valida el resultado y guarda un snapshot en `receipt_reviews`.
+3. WhatsApp muestra el ticket y `TIPO TICKET <token firmado> VENTA`; cambiar la última palabra por GASTO o COMPRA.
+4. VENTA resuelve renglones contra el catálogo del negocio y pregunta cada presentación ambigua. Solo con todos los renglones válidos crea un borrador.
+5. GASTO prepara la propuesta cancelable existente a partir del total y el comercio del ticket.
+6. Ambas rutas requieren una **confirmación textual posterior**. Elegir tipo o presentación no confirma. COMPRA solo identifica el documento y explica que la recepción de compras/entrada de inventario sigue pendiente.
 
-El extractor usa Responses API, entrada de imagen con bytes privados (data URL), `store:false`, sin herramientas y JSON Schema estricto. Modelo predeterminado configurable: `gpt-6.1-sol`; no sustituye el modelo `gpt-transcribe` de audio. El acceso/disponibilidad del modelo y la precisión real aún no se comprobaron con esta cuenta.
+El extractor existente usa Responses API, imagen privada por bytes/data URL, `store:false`, JSON Schema y modelo configurable `gpt-6.1-sol`. Audio conserva `gpt-transcribe`. Se extraen legibilidad, comercio, fecha impresa, moneda, total en centavos, renglones y advertencias. Valores ilegibles son null. No se asume MXN por el símbolo `$` ni se ejecutan instrucciones impresas.
 
-Campos iniciales: legibilidad, comercio, fecha impresa, moneda (MXN/otra/desconocida), total en centavos, renglones con descripción/cantidad/precio unitario/importe y advertencias. Valores ilegibles deben ser null; no se asume MXN por un símbolo `$` aislado. Se validan rangos/tipos localmente. Imagen y texto extraído son datos no confiables; nunca instrucciones de herramientas. Se eliminan saltos de línea y controles de presentación de campos al mostrarlos como resumen.
+## Validación y aclaraciones
 
-## Revisión y clasificación
+- Moneda MXN explícita, total legible y ninguna advertencia pendiente para preparar propuestas automáticas.
+- Venta: todos los renglones deben corresponder a productos existentes, cantidades hasta tres decimales y enteras si se venden por pieza. No se inventan unidades, productos ni conversiones de cajas/botellas.
+- La ambigüedad se resuelve por renglón con el menú firmado existente. La selección conserva revisión/operación originales y recarga catálogo; no devuelve un carrito parcial.
+- Precios/importe impresos, cuando son legibles, deben coincidir con el catálogo. El total debe reconciliar con los renglones; discrepancias por impuestos/descuentos/redondeo o lectura piden corrección. Los precios se editan fuera de la venta.
+- El resumen incluye el total impreso y la cotización vigente. Si cambia precio después del resumen, el RPC existente devuelve anterior/nuevo y exige aprobación de la versión nueva.
+- Gasto: total positivo y concepto `Ticket: <comercio>`, visibles antes de confirmar. La fecha contable toma el timestamp del mensaje original; no se interpreta automáticamente la fecha impresa ni se asume una zona horaria. El reporte mantiene la zona explícita del negocio.
+- Los datos inciertos se corrigen por texto o mediante otra imagen. No se implementó todavía un editor estructurado del OCR; el snapshot guardado no se reemplaza silenciosamente.
 
-El resumen pregunta si se trata de VENTA, COMPRA o GASTO y entrega:
+## Persistencia e idempotencia
 
-```text
-TIPO TICKET <token firmado> VENTA
-```
+Migraciones **009–010 aplicadas en local y microai-dev**; 001–010 al día en el dry-run remoto.
 
-Cambiar la última palabra por COMPRA o GASTO. El token vence a los 15 minutos, está ligado al remitente y negocio e identifica el archivo. La selección solo orienta el siguiente paso y se conserva como respuesta del evento; no es una aprobación contable ni crea un registro de compras. No se ha implementado una tabla de tickets contables o una clasificación transaccional definitiva.
+009 agrega `receipt_reviews` ligado por FK al negocio y a una imagen registrada. Guarda extracción, hash, clasificación y vencimiento de 15 minutos. Se conserva un snapshot por negocio/hash exacto: reintentos o reenvíos de los mismos bytes reutilizan revisión y no renuevan su plazo. La primera extracción no se sobrescribe por otra respuesta de IA.
 
-- VENTA: pide revisar cantidades/presentaciones y usar `Vendí ...`; se resuelve contra el catálogo y se exige resumen/confirmación versionada. Los precios impresos no sobrescriben catálogo.
-- GASTO: pide revisar moneda/importe y usar `Gasté ... en ...`; genera propuesta cancelable que requiere confirmación textual.
-- COMPRA: explica que la recepción de compras y entradas de inventario todavía no está implementada. No convierte silenciosamente la compra en gasto ni suma stock.
+La clasificación se serializa en DB. Repetir el mismo tipo es idempotente; intentar usar la misma revisión como venta y gasto devuelve `RECEIPT_KIND_LOCKED`. El tipo queda fijo tras elegirlo, incluso si la propuesta posterior necesita correcciones. Una revisión vencida no se renueva por reenviar los mismos bytes; se informa al comerciante para revisar el borrador existente o usar texto.
 
-Esta entrega inicia extracción y revisión. La conversión automática de renglones a borradores, correcciones estructuradas, registro de compras, impuestos/descuentos detallados, conciliación y detección de fotos distintas del mismo ticket siguen pendientes. No se promete deduplicación contable por documento físico; se deduplican eventos y cargas por clave de operación.
+La venta usa clave estable `receipt:<reviewId>`; el gasto usa `expense:receipt:<reviewId>` al proponer y la confirmación usa su borrador durable. Dos mensajes de clasificación o aprobación no generan dos operaciones. Cancelar un gasto invalida sus aprobaciones y volver a clasificar ese ticket no lo reactiva. Los borradores de venta mantienen su cancelación/expiración originales.
 
-## Configuración
+La deduplicación es por imagen idéntica dentro del negocio: **no detecta fotos/crops distintos del mismo ticket físico ni operaciones manuales equivalentes**. No eliminar revisiones usadas como parte de una limpieza sin conservar la trazabilidad/idempotencia; la política de retención aún está pendiente.
 
-Requiere migración 008 aplicada (ya comprobada en local y microai-dev), variables Supabase/Infobip de servidor y:
+010 retira INSERT/UPDATE/TRUNCATE automáticos de `service_role` sobre snapshots. Se insertan y clasifican solo mediante RPC controlados; anon/authenticated no pueden leer tablas ni ejecutar esos RPC. Se conserva DELETE de servidor para mantenimiento/limpieza de fixtures, sin endpoint público para ello. Los tokens ligan remitente/negocio/revisión y expiran; tokens del formato anterior de solo lectura se rechazan y requieren solicitar revisión nueva.
+
+## Configuración e integración
+
+Los flags permanecen desactivados por defecto:
 
 ```dotenv
+WHATSAPP_AUDIO_ENABLED=false
 WHATSAPP_RECEIPTS_ENABLED=false
 OPENAI_RECEIPT_MODEL=gpt-6.1-sol
 OPENAI_API_KEY=
 INFOBIP_MEDIA_REDIRECT_ORIGINS=
 ```
 
-Habilitar explícitamente con `WHATSAPP_RECEIPTS_ENABLED=true` después de configurar/verificar la cuenta. El flag no sustituye URL HTTPS pública ni enrutamiento de Infobip. No requiere nueva migración posterior a 008.
+El bootstrap ya conecta lector Supabase, repositorio de revisiones y extractores. Antes de activar, configurar/verificar credenciales, URL pública/enrutamiento Infobip, evento real y CDN de la cuenta. La descarga inicial solo permite el origen API configurado y `/whatsapp/1/senders/<receptor>/media/<id>`. Los CDN requieren orígenes HTTPS explícitos y nunca reciben la API key; descarga limitada a 10 MiB, timeout y firma de contenedor. El claim durable envuelve descarga/guardado/IA; reintentos reutilizan el archivo privado y respuestas completadas.
 
-## Descarga segura Infobip
+Sigue pendiente una cola/worker con renovación para IA lenta/lotes grandes, retención de datos y reconciliación de objetos huérfanos. La demo web permanece mock e independiente.
 
-Contrato legacy contrastado con el SDK oficial: `results[].message.{type:'AUDIO'|'IMAGE',url}`. El parser no acepta storageKey/negocio externos como autoridad. La URL inicial debe pertenecer exactamente al origen API configurado y al endpoint `/whatsapp/1/senders/<receptor>/media/<id>`; no se aceptan rutas arbitrarias ni query/credenciales. El GET lleva `Authorization: App ...`, timeout total de descarga 10 s, límite durante streaming de 10 MiB y validación MIME/firma de contenedor.
+## Verificación
 
-Infobip puede devolver redirección a un CDN. Los orígenes HTTPS de descarga finales deben autorizarse explícitamente en `INFOBIP_MEDIA_REDIRECT_ORIGINS` (lista separada por comas). Las redirecciones nunca reciben el API key, no pueden volver al origen API y se limitan en cantidad. No abrir dominios comodín para hacer pasar una prueba. Si la cuenta usa otro esquema/origen inicial hay que contrastar un evento real y ajustar el adaptador de forma explícita.
+```bash
+npm run validate
+npm run build
+python3 scripts/check-role2-local.py
+python3 scripts/check-role1-database.py
+python3 scripts/check-role1-database.py --remote-ref hfcetxrktdorebepttof
+```
 
-El archivo se guarda antes de llamar a IA. Si falla el procesamiento, un reintento puede encontrar la referencia guardada y no volver a descargar el medio temporal de Infobip. El claim durable envuelve descarga, almacenamiento e interpretación; eventos ya completados reproducen su respuesta sin repetir IA ni efectos. Los flags desactivados no descargan medios. El alta/identidad se resuelve antes de cualquier descarga.
+- Tipos/lint y 137 pruebas aprobadas; se omiten dos integraciones opt-in por defecto (Supabase local y OpenAI real).
+- Integración con Storage/PostgreSQL/Auth locales reales: ticket → borrador sin descuento → confirmación única; precio cambiado exige versión nueva; reenvío de imagen idéntica, gasto confirmado/cancelado, clasificación concurrente y clientes sin privilegios. HTTP externos OpenAI/Infobip simulados.
+- SQL local/remoto con rollback: snapshots inmutables, clasificación, identidad cruzada, expiración, permisos y ausencia de efectos contables al clasificar. Dry-run remoto sin pendientes; no se subieron imágenes al Storage alojado para estas comprobaciones.
+- No se ejecutó OpenAI real: no hay clave configurada en el entorno revisado. No se comprobó WhatsApp real ni precisión/costo/latencia. Para evaluar archivos autorizados, ver [aceptación OpenAI](openai-acceptance.md).
 
-## Verificación y límites operativos
-
-- Tipos/lint y 110 pruebas aprobadas; build aprobado.
-- Integración local con Storage/PostgreSQL/Auth reales: webhook AUDIO/IMAGE autenticado, descarga y guardado, replays, borrador de audio y confirmación única, ticket y elección de tipo sin ventas/gastos. Los HTTP externos de OpenAI/Infobip están simulados.
-- Remoto: migración 008 aplicada; buckets privados, límites, RLS y políticas restrictivas comprobados. Dry-run sin pendientes y aceptación SQL con rollback aprobada. No se subieron archivos de prueba al Storage alojado en esta entrega.
-- No se comprobaron OpenAI real ni WhatsApp real. No hay credenciales operativas ni vínculo Vercel local en el entorno revisado. No se midió precisión/costo/latencia. No se habilitaron flags ni se envió contenido a terceros durante las pruebas.
-- Pipeline síncrono: descarga Infobip 10 s, descarga Storage 10 s y llamada IA 20 s; el resto de operaciones también consume tiempo. Sigue pendiente una cola/worker con renovación para trabajo lento y lotes grandes. Las expiraciones mantienen los errores reintentables y el fencing del almacenamiento; no garantizan que un lote grande termine dentro del límite HTTP.
-
-Fuentes consultadas: [Infobip inbound](https://www.infobip.com/docs/whatsapp/message-types-and-templates/inbound-messages), [SDK oficial audio](https://github.com/infobip/infobip-api-java-client/blob/master/src/main/java/com/infobip/model/WhatsAppWebhookInboundAudioMessage.java), [SDK oficial imagen](https://github.com/infobip/infobip-api-java-client/blob/master/src/main/java/com/infobip/model/WhatsAppWebhookInboundImageMessage.java), [visión OpenAI](https://developers.openai.com/api/docs/guides/images-vision), [salidas estructuradas](https://developers.openai.com/api/docs/guides/structured-outputs), [modelo](https://developers.openai.com/api/docs/models/gpt-6.1-sol).
+Fuentes del adaptador existente: [Infobip inbound](https://www.infobip.com/docs/whatsapp/message-types-and-templates/inbound-messages), [SDK audio](https://github.com/infobip/infobip-api-java-client/blob/master/src/main/java/com/infobip/model/WhatsAppWebhookInboundAudioMessage.java), [SDK imagen](https://github.com/infobip/infobip-api-java-client/blob/master/src/main/java/com/infobip/model/WhatsAppWebhookInboundImageMessage.java), [visión OpenAI](https://developers.openai.com/api/docs/guides/images-vision), [salida estructurada](https://developers.openai.com/api/docs/guides/structured-outputs).

@@ -3,6 +3,7 @@ import { expect,it,vi } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 import { completeBusinessOnboarding } from '../src/modules/data/businesses';
 import { createStandardProduct,updateProductCommercials } from '../src/modules/data/products';
+import { createReceiptReviewRepository } from '../src/modules/data/receipt-reviews';
 import { createRole2Service } from '../src/modules/orchestration/service';
 import { createConversation } from '../src/modules/orchestration/conversation';
 import { createConversationRepositories } from '../src/modules/orchestration/repositories';
@@ -135,10 +136,11 @@ it.skipIf(process.env.RUN_LOCAL_SUPABASE_TESTS !== 'true')('persists the real we
     expect(Number((await client.from('products').select('stock').eq('id',product.id).single()).data?.stock)).toBe(5);
     // Full authenticated inbound media -> private Storage -> AI fixture -> durable reply.
     const downloaded=vi.fn<typeof fetch>(async input=>{
-      const isImage=String(input).endsWith('/ticket-image');
-      return new Response(new Uint8Array(isImage?imageBytes:voiceBytes),{headers:{'content-type':isImage?'image/png':'audio/ogg'}});
+      const isImage=String(input).includes('/ticket-image');
+      const imageFixture=String(input).endsWith('/ticket-image')?imageBytes:Buffer.concat([imageBytes,Buffer.from(String(input).split('/').at(-1)!)]);
+      return new Response(new Uint8Array(isImage?imageFixture:voiceBytes),{headers:{'content-type':isImage?'image/png':'audio/ogg'}});
     });
-    const extracted={readable:true,merchant:'Fixture proveedor',date:null,currency:'MXN',total_cents:2500,
+    const extracted={readable:true,merchant:'Fixture proveedor',date:null,currency:'MXN' as const,total_cents:2500,
       items:[{description:'Coca 600 ml',quantity:1,unit_price_cents:2500,line_total_cents:2500}],warnings:[]};
     const visionHttp=vi.fn<typeof fetch>(async()=>Response.json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(extracted)}]}]}));
     const mediaHandler=createRole2Service({client,baseUrl:'https://fixture.api.infobip.com',apiKey:'fixture',sender:recipient,
@@ -147,9 +149,9 @@ it.skipIf(process.env.RUN_LOCAL_SUPABASE_TESTS !== 'true')('persists the real we
       receipts:{reader:mediaStore,extractor:createOpenAIReceiptExtractor({apiKey:'fixture'},visionHttp)},
       ingestMedia:createInfobipMediaIngestor({baseUrl:'https://fixture.api.infobip.com',apiKey:'fixture',sender:recipient},mediaStore,downloaded)});
     const received=new Date().toISOString();
-    const incoming=async(id:string,type:string,text?:string)=>{
+    const incoming=async(id:string,type:string,text?:string,mediaId?:string)=>{
       const response=await mediaHandler({rawBody:JSON.stringify({results:[{messageId:`${prefix}-${id}`,from:sender,to:recipient,receivedAt:received,
-        message:{type,...(type==='TEXT'?{text}:{url:`https://fixture.api.infobip.com/whatsapp/1/senders/${recipient}/media/${type==='IMAGE'?'ticket-image':'voice-audio'}`})}}]}),
+        message:{type,...(type==='TEXT'?{text}:{url:`https://fixture.api.infobip.com/whatsapp/1/senders/${recipient}/media/${mediaId??(type==='IMAGE'?'ticket-image':'voice-audio')}`})}}]}),
         headers:new Headers({'content-type':'application/json',authorization:`Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`})});
       expect(response.status).toBe(200);return replies.at(-1)!;
     };
@@ -173,6 +175,55 @@ it.skipIf(process.env.RUN_LOCAL_SUPABASE_TESTS !== 'true')('persists the real we
     expect(await send('confirm-cancelled-expense',expenseCommand)).toContain('cancelada');
     const expenses=await client.from('expenses').select('id').eq('business_id',businessId);
     expect(expenses.data).toHaveLength(0);
+    // Ticket -> sale draft: no stock effect until a versioned explicit confirmation.
+    const saleTicket=await incoming('sale-ticket','IMAGE',undefined,'ticket-image-sale');
+    const saleType=saleTicket.split('\n').find(line=>line.startsWith('TIPO TICKET '))!;
+    const saleSummary=await incoming('sale-ticket-type','TEXT',saleType);
+    expect(saleSummary).toContain('No se ha registrado la venta');
+    expect(Number((await client.from('products').select('stock').eq('id',product.id).single()).data?.stock)).toBe(4);
+    const repeatedSummary=await incoming('sale-ticket-type-repeat','TEXT',saleType);
+    expect(command(repeatedSummary)).toBe(command(saleSummary));
+    // A second message/photo with identical bytes must reuse the same durable review.
+    const duplicateTicket=await incoming('sale-ticket-duplicate','IMAGE',undefined,'ticket-image-sale');
+    const duplicateType=duplicateTicket.split('\n').find(line=>line.startsWith('TIPO TICKET '))!;
+    expect(command(await incoming('sale-ticket-duplicate-type','TEXT',duplicateType))).toBe(command(saleSummary));
+    expect(await incoming('sale-ticket-reclassify','TEXT',saleType.replace(/VENTA$/,'GASTO'))).toContain('otro tipo');
+    await updateProductCommercials(client,{verifiedSender:sender,productId:product.id,priceCents:3000,stock:4,
+      expected:{priceCents:2500,stock:4,costCents:null}});
+    const updatedTicketQuote=await incoming('sale-ticket-old-confirm','TEXT',command(saleSummary));
+    expect(updatedTicketQuote).toContain('Total anterior');expect(updatedTicketQuote).toContain('Nuevo total');
+    expect(await incoming('sale-ticket-outdated','TEXT',command(saleSummary))).toContain('resumen anterior');
+    expect((await client.from('sales').select('id').eq('business_id',businessId)).data).toHaveLength(4);
+    await incoming('sale-ticket-new-confirm','TEXT',command(updatedTicketQuote));
+    await incoming('sale-ticket-confirm-again','TEXT',command(updatedTicketQuote));
+    expect((await client.from('sales').select('id').eq('business_id',businessId)).data).toHaveLength(5);
+    expect(Number((await client.from('products').select('stock').eq('id',product.id).single()).data?.stock)).toBe(3);
+    const expenseTicket=await incoming('expense-ticket','IMAGE',undefined,'ticket-image-expense');
+    const expenseType=expenseTicket.split('\n').find(line=>line.startsWith('TIPO TICKET '))!.replace(/VENTA$/,'GASTO');
+    const ticketExpenseSummary=await incoming('expense-ticket-type','TEXT',expenseType);
+    expect(ticketExpenseSummary).toContain('Gasto propuesto');
+    const ticketExpenseCommand=ticketExpenseSummary.split('\n')[1].replace('Responde ','');
+    await incoming('cancel-ticket-expense','TEXT','CANCELAR GASTO');
+    expect(await incoming('expense-ticket-repeat-type','TEXT',expenseType)).toContain('ya fue procesada');
+    expect(await incoming('expense-ticket-confirm-cancelled','TEXT',ticketExpenseCommand)).toContain('cancelada');
+    const confirmedExpenseTicket=await incoming('confirmed-expense-ticket','IMAGE',undefined,'ticket-image-expense-confirmed');
+    const confirmedExpenseType=confirmedExpenseTicket.split('\n').find(line=>line.startsWith('TIPO TICKET '))!.replace(/VENTA$/,'GASTO');
+    const confirmationSummary=await incoming('confirmed-expense-type','TEXT',confirmedExpenseType);
+    const expenseApproval=confirmationSummary.split('\n')[1].replace('Responde ','');
+    await incoming('confirmed-expense-approve','TEXT',expenseApproval);
+    await incoming('confirmed-expense-approve-again','TEXT',expenseApproval);
+    const receiptExpenses=await client.from('expenses').select('amount_cents').eq('business_id',businessId);
+    expect(receiptExpenses.data).toEqual([{amount_cents:2500}]);
+    // Serialize mutually exclusive classifications, even with separate DB requests.
+    const raceMedia=await mediaStore.save(audioActor,{kind:'image',operationKey:`${prefix}-race-review`,mimeType:'image/png',
+      bytes:Buffer.concat([imageBytes,Buffer.from('race-review')])});
+    const reviews=createReceiptReviewRepository(client);
+    const raceReview=await reviews.save(sender,raceMedia.storageKey,extracted,received);
+    const classifications=await Promise.allSettled([reviews.classify(sender,raceReview.id,'sale'),reviews.classify(sender,raceReview.id,'expense')]);
+    expect(classifications.filter(result=>result.status==='fulfilled')).toHaveLength(1);
+    expect(classifications.filter(result=>result.status==='rejected')).toHaveLength(1);
+    expect((await anonymous.from('receipt_reviews').select('*')).error).not.toBeNull();
+    expect((await anonymous.rpc('get_receipt_review',{p_sender:sender,p_id:raceReview.id})).error).not.toBeNull();
   } finally {
     vi.unstubAllGlobals();
     if(storageTestUserId) {
@@ -193,6 +244,8 @@ it.skipIf(process.env.RUN_LOCAL_SUPABASE_TESTS !== 'true')('persists the real we
       if(removed.error) throw removed.error;
     }
     if(businessId) {
+      const reviewsRemoved=await client.from('receipt_reviews').delete().eq('business_id',businessId);
+      if(reviewsRemoved.error) throw reviewsRemoved.error;
       const mediaRemoved=await client.from('business_media').delete().eq('business_id',businessId);
       if(mediaRemoved.error) throw mediaRemoved.error;
       for(const table of ['r2_expense_drafts','whatsapp_sale_drafts','sale_items','sales','products','expenses']) {

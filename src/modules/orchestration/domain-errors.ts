@@ -1,5 +1,9 @@
 /** Only translate known business failures. Unknown/infrastructure errors remain retryable. */
 const replies: Record<string,string> = {
+  RECEIPT_REVIEW_NOT_FOUND: 'No encontré esa revisión de ticket para tu negocio. Envía el ticket de nuevo.',
+  RECEIPT_MEDIA_NOT_FOUND: 'No encontré la imagen del ticket para tu negocio.',
+  RECEIPT_REVIEW_EXPIRED: 'La revisión del ticket venció. No se renovó ni registró otra operación. Revisa el borrador existente o usa el flujo por texto.',
+  RECEIPT_KIND_LOCKED: 'Este ticket ya tiene otro tipo elegido. No se puede usar la misma revisión para registrar venta y gasto.',
   OUT_OF_STOCK: 'Agotado o inventario insuficiente. La venta no se registró; corrige las cantidades y crea un nuevo resumen.',
   DRAFT_EXPIRED: 'El resumen venció. Escribe la venta otra vez para revisar precios y existencias.',
   DRAFT_CANCELLED: 'Ese borrador fue cancelado. Inicia una nueva venta.',

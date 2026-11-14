@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { dashboardSchema, orderSchema, orderStatusSchema, statusLabels, type Dashboard as DashboardData, type DashboardQuery, type Order, type OrderStatus } from "@/src/contracts/distributor";
 import { api, errorMessage, jsonRequest } from "./api-client";
+import { ENDPOINTS } from "@/src/config/env";
 import { Icon } from "./icon";
 import Link from "next/link";
 import { BrandLogo } from "./brand-logo";
@@ -27,7 +28,7 @@ export function Dashboard({ mock }: { mock: boolean }) {
     if (applied.current.q) params.set("q", applied.current.q);
     if (applied.current.status) params.set("status", applied.current.status);
     try {
-      const result = await api(`/api/distributor/dashboard${params.size ? `?${params}` : ""}`, dashboardSchema);
+      const result = await api(`${ENDPOINTS.dashboard}${params.size ? `?${params}` : ""}`, dashboardSchema);
       if (current === sequence.current) setData(result);
     } catch (e) { if (current === sequence.current) setError(errorMessage(e)); }
     finally { if (current === sequence.current) setLoading(false); }
@@ -43,7 +44,7 @@ export function Dashboard({ mock }: { mock: boolean }) {
   async function update(order: Order, next: OrderStatus) {
     setSaving(order.id); setError(""); setFeedback("");
     try {
-      await api(`/api/distributor/orders/${order.id}/status`, orderSchema, jsonRequest("PATCH", { status: next, expected_version: order.version }));
+      await api(ENDPOINTS.orderStatus(order.id), orderSchema, jsonRequest("PATCH", { status: next, expected_version: order.version }));
       setFeedback(`${order.id}: estado actualizado a ${statusLabels[next].toLocaleLowerCase("es-MX")}.`);
       await load();
     } catch (e) { setError(errorMessage(e)); }

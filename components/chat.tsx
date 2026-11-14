@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { audioMimeTypes, chatInputSchema, historySchema, imageMimeTypes, MAX_MEDIA_BYTES, sendMessageResponseSchema, type ChatInput, type ChatMessage } from "@/src/contracts/chat";
 import { api, errorMessage, jsonRequest } from "./api-client";
+import { ENDPOINTS } from "@/src/config/env";
 import { Icon } from "./icon";
 import { BrandLogo } from "./brand-logo";
 import ui from "./workspace.module.css";
@@ -28,7 +29,7 @@ export function Chat({ mock }: { mock: boolean }) {
 
   async function load() {
     setLoading(true); setError("");
-    try { const history = await api("/api/chat/messages", historySchema); setMessages(history.messages); }
+    try { const history = await api(ENDPOINTS.chat, historySchema); setMessages(history.messages); }
     catch (e) { setError(errorMessage(e)); }
     finally { setLoading(false); }
   }
@@ -102,7 +103,7 @@ export function Chat({ mock }: { mock: boolean }) {
     if (!parsed.success) { setError(kind === "text" ? "Escribe un mensaje de hasta 2,000 caracteres." : "Selecciona un archivo válido y, para la imagen, escribe su descripción."); return; }
     setBusy(true);
     try {
-      const result = await api("/api/chat/messages", sendMessageResponseSchema, jsonRequest("POST", parsed.data));
+      const result = await api(ENDPOINTS.chat, sendMessageResponseSchema, jsonRequest("POST", parsed.data));
       setMessages(current => [...current.filter(m => !result.messages.some(next => next.id === m.id)), ...result.messages].slice(-20));
       setText(""); setAttachment(null); setAlt(""); pending.current = null;
       if (fileInput.current) fileInput.current.value = "";

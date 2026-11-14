@@ -1,6 +1,7 @@
 import { webApiPaths } from "../../contracts/health";
 import type { HealthService } from "../../contracts/services";
 import { isMockMode } from "./session";
+import { SERVER_ENV } from "../../config/server-env";
 
 export const healthService: HealthService = {
   async check() {
@@ -11,7 +12,7 @@ export const healthService: HealthService = {
       timestamp: new Date().toISOString(),
       endpoints: [
         ...webApiPaths,
-        ...(process.env.INFOBIP_WEBHOOK_ENABLED === "true" ? ["/api/webhooks/infobip"] : []),
+        ...(SERVER_ENV.infobipWebhookEnabled ? ["/api/webhooks/infobip"] : []),
       ],
     };
   },

@@ -4,11 +4,12 @@ import { deflateRawSync, inflateRawSync } from "node:zlib";
 import { orderSchema, type Actor } from "../../../contracts";
 import type { MockServices } from "./services";
 import { HttpError } from "../errors";
+import { SERVER_ENV } from "../../../config/server-env";
 
 const name = "knectan_demo_orders";
 export const MAX_DEMO_ORDERS = 30;
 const snapshotSchema = z.object({ sessionId: z.string().uuid(), expires: z.number().int(), revision: z.number().int().nonnegative().safe(), orders: z.array(orderSchema).max(MAX_DEMO_ORDERS) }).strict();
-const sign = (payload: string) => createHmac("sha256", process.env.MOCK_SESSION_SECRET || "knectan-public-demo-only-v1").update(`orders:${payload}`).digest("base64url");
+const sign = (payload: string) => createHmac("sha256", SERVER_ENV.sessionSecret).update(`orders:${payload}`).digest("base64url");
 
 function encodeSnapshot(actor: Actor, orders: z.infer<typeof orderSchema>[], revision: number) {
   const value = snapshotSchema.parse({ sessionId: actor.sessionId, expires: Date.now() + 6 * 3600000, revision, orders });

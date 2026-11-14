@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { channelLabels, createOrderSchema, deleteOrderResponseSchema, orderChannelSchema, orderSchema, type Order } from "@/src/contracts/distributor";
 import { api, errorMessage, jsonRequest } from "./api-client";
+import { ENDPOINTS } from "@/src/config/env";
 import { currency, mxnToCents } from "./money";
 import ui from "./workspace.module.css";
 import styles from "./order-dialog.module.css";
@@ -45,7 +46,7 @@ export function CreateOrderDialog({ close, saved }: { close: () => void; saved: 
     }
     setFields({}); setError(""); setBusy(true);
     try {
-      const order = await api("/api/distributor/orders", orderSchema, jsonRequest("POST", parsed.data));
+      const order = await api(ENDPOINTS.orders, orderSchema, jsonRequest("POST", parsed.data));
       await saved(`${order.id}: pedido agregado para ${order.customer}.`);
     } catch (e) { setError(errorMessage(e)); setBusy(false); }
   }
@@ -69,7 +70,7 @@ export function DeleteOrderDialog({ order, close, saved }: { order: Order; close
     if (busy) return;
     setBusy(true); setError("");
     try {
-      await api(`/api/distributor/orders/${order.id}`, deleteOrderResponseSchema, jsonRequest("DELETE", { expected_version: order.version }));
+      await api(ENDPOINTS.order(order.id), deleteOrderResponseSchema, jsonRequest("DELETE", { expected_version: order.version }));
       await saved(`${order.id}: pedido quitado. Indicadores actualizados.`);
     } catch (e) { setError(errorMessage(e)); setBusy(false); }
   }

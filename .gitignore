@@ -4,7 +4,9 @@ out/
 build/
 coverage/
 *.tsbuildinfo
-.env*
+.env
+.env*.local
+.env.*
 !.env.example
 .vercel/
 
@@ -23,3 +25,4 @@ lerna-debug.log*
 test-results/
 playwright-report/
 .taste-skill/
+.vercel

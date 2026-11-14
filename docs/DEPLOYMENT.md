@@ -10,13 +10,13 @@ Requiere Node.js 22 o 24 y npm. Desde la **raíz de este repositorio**:
 npm ci
 ```
 
-Copiar `.env.example` a `.env.local`. En PowerShell:
+Crear `.env.local` para los valores de esta máquina. No pegues credenciales en el código ni las subas al repositorio. En PowerShell puedes partir de la plantilla:
 
 ```powershell
 Copy-Item .env.example .env.local
 ```
 
-Dejar `MOCK_MODE=true`. El resto de las variables de proveedores puede quedar vacío. `MOCK_SESSION_SECRET` es opcional en local; si se define, debe ser un valor aleatorio que permanezca estable durante la demo. Nunca usar un prefijo `NEXT_PUBLIC_` para esta clave o para activar mocks.
+Dejar `MOCK_MODE=true` para usar la demo. Ajusta `NEXT_PUBLIC_APP_URL` a `http://localhost:3000` y `NEXT_PUBLIC_API_BASE_URL` a `http://localhost:3000/api` si copiaste la plantilla de producción. El resto de las variables de proveedores puede quedar vacío. `SESSION_SECRET` debe ser aleatorio y mantenerse estable mientras quieras conservar válidas las cookies existentes. Nunca uses un prefijo `NEXT_PUBLIC_` para secretos ni para activar mocks.
 
 ```sh
 npm run dev
@@ -77,9 +77,19 @@ Los recorridos comprueban health público incluso con cookie inválida, navegaci
 2. En Vercel, seleccionar **Add New → Project** e importar ese repositorio.
 3. Usar el preset **Next.js** y como Root Directory la raíz del repositorio, no `frontend/` ni `backend/`. Vercel soporta Next.js de forma nativa ([guía oficial](https://vercel.com/docs/frameworks/full-stack/nextjs)).
 4. Elegir Node.js **22.x** en la configuración del proyecto. Mantener Install Command `npm ci` y Build Command `npm run build`; dejar el directorio de salida en su valor predeterminado para Next.js ([configuración de build](https://vercel.com/docs/builds/configure-a-build)).
-5. En Environment Variables añadir `MOCK_MODE=true` para Preview y Production. Recomendado: añadir `MOCK_SESSION_SECRET` con una clave aleatoria distinta a otros proyectos. No hacen falta variables de AWS, Meta o Supabase. Las variables se aplican al siguiente despliegue ([documentación de variables](https://vercel.com/docs/environment-variables)).
+5. En Environment Variables añadir `MOCK_MODE=true` para Preview y Production. Añadir `SESSION_SECRET` con un valor aleatorio privado y estable, distinto por entorno. No hacen falta variables de AWS, Meta o Supabase para la demo mock. Las variables se aplican al siguiente despliegue ([documentación de variables](https://vercel.com/docs/environment-variables)).
 6. Pulsar **Deploy**. En la URL HTTPS resultante, comprobar `/api/health`, `/chat`, `/distribuidores`, `/publicidad` y `/logo/Knectan_logo.svg`. El healthcheck debe responder HTTP 200 con `status: "ok"`, `service: "knectan-web"` y `mockMode: true`, sin iniciar sesión. Probar los tres tipos de mensaje, filtros, alta/baja de pedidos, recarga y activación mock de un plan.
 7. Para cambios posteriores de variables, crear un nuevo deployment. Si se cambia la clave, borrar las cookies `knectan_demo` y `knectan_demo_orders` del navegador y volver a cargar.
+
+### Cargar credenciales de proveedores
+
+Para desarrollo local, agrega los valores solo a `.env.local` en la raíz del proyecto. Next.js la carga automáticamente y Git la ignora. No compartas ese archivo ni pegues secretos en chats, tickets o capturas. En Vercel, ingresa las mismas variables en **Project → Settings → Environment Variables**, selecciona Development/Preview/Production según corresponda y crea un deployment nuevo. `.env.example` contiene nombres y valores de muestra; nunca pongas claves reales ahí.
+
+- **Supabase:** configura `SUPABASE_URL` (o `NEXT_PUBLIC_SUPABASE_URL`) y `SUPABASE_SERVICE_ROLE_KEY` para el webhook/Storage del servidor. El `service_role` es secreto: nunca debe llevar prefijo `NEXT_PUBLIC_`. `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` solo son apropiadas para cliente si la app realmente usa Supabase desde el navegador y las tablas/buckets están protegidos por RLS; la ruta actual de webhook utiliza el cliente privilegiado de servidor. Aplica las migraciones requeridas antes de habilitar el webhook.
+- **OpenAI:** define `OPENAI_API_KEY` solo en el servidor. Para transcripción de audio entrante, configura también `WHATSAPP_AUDIO_ENABLED=true`; para extracción/revisión de tickets, usa `WHATSAPP_RECEIPTS_ENABLED=true` y opcionalmente `OPENAI_RECEIPT_MODEL`. Mantén esos flags en `false` hasta completar las credenciales, Storage y pruebas.
+- **WhatsApp:** la ruta que implementa este proyecto utiliza **Infobip**, no la API Cloud de Meta. Configura `INFOBIP_BASE_URL`, `INFOBIP_API_KEY`, `INFOBIP_WHATSAPP_SENDER`, `INFOBIP_WEBHOOK_USERNAME`, `INFOBIP_WEBHOOK_PASSWORD`, `INFOBIP_ONBOARDING_SECRET`, `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`; luego activa `INFOBIP_WEBHOOK_ENABLED=true` y registra en Infobip la URL HTTPS `<dominio>/api/webhooks/infobip` con el mismo usuario y contraseña Basic. `META_*` no habilita ese flujo en el código actual. No actives el webhook hasta haber aplicado migraciones y verificado el perfil y enrutamiento de Infobip.
+
+Tras configurar, valida `/api/health` y revisa los logs del deployment. El healthcheck confirma que la ruta responde y muestra el modo mock; no valida las credenciales de proveedores. `.env.local` puede contener credenciales reales y está excluido de Git; confirma el patrón con `git check-ignore .env.local` antes de compartir cambios.
 
 ### Persistencia de la demo
 

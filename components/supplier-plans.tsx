@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { planActivationSchema, recommendPlan, supplierPlans, type SupplierPlan } from "@/src/contracts/plans";
 import { api, errorMessage, jsonRequest } from "./api-client";
+import { ENDPOINTS } from "@/src/config/env";
 import { currency } from "./money";
 import ui from "./workspace.module.css";
 import styles from "./supplier-plans.module.css";
@@ -17,7 +18,7 @@ export function SupplierPlans({ mock }: { mock: boolean }) {
     if (busy) return;
     setBusy(plan.id); setFeedback(""); setError("");
     try {
-      const result = await api("/api/distributor/plans", planActivationSchema, jsonRequest("POST", { planId: plan.id }));
+      const result = await api(ENDPOINTS.plans, planActivationSchema, jsonRequest("POST", { planId: plan.id }));
       setActive(result.planId);
       setFeedback(`${plan.name}: plan activado en modo mock por ${currency(result.monthly_price_cents)} MXN al mes. No se realizó ningún cobro ni se publicaron anuncios.`);
     } catch (e) { setError(errorMessage(e)); }

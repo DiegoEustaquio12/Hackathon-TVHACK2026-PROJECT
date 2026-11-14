@@ -6,6 +6,8 @@ Conectar canales e identidad con interpretación y operaciones del negocio. Para
 
 ## Trabajo inmediato en paralelo
 
+**Nuevas capacidades R1:** leer [estándar de productos](../product-standard.md) y [gastos/reportes](../accounting-contract.md). `clarificationOptions` entrega IDs/nombres completos cuando “coca” tiene varias presentaciones: pedir elección y reconstruir el carrito antes del resumen; no confirmar inmediatamente la venta al elegir un producto. Las intenciones ahora incluyen `expense` (propuesta que necesita aprobación y clave estable) y `report` (`sales_today`, lectura sin aprobación). Si falta zona horaria, pedirla antes del reporte. No pasar gastos a los borradores de venta.
+
 1. Leer [guía paralela](../parallel-work.md) y [contratos](../integration-contracts.md); R3 materializa los tipos TS.
 2. Implementar adaptador, autenticación y parser Infobip con fixtures sanitizados. Contrastar el esquema con documentación/evento real.
 3. Implementar conversación con intérprete mock y repositorios inyectados de R1; no crear tablas paralelas de eventos o borradores.
@@ -15,6 +17,10 @@ Conectar canales e identidad con interpretación y operaciones del negocio. Para
 R1 ya entrega repositorios de eventos y borradores. R2 controla procesamiento/reintentos y solicita nuevos métodos de persistencia a R1. El registro de metadatos no es una cola: no confirmar aceptación y descartar contenido sin procesamiento o persistencia durable. Si falta vínculo de negocio, ofrecer alta segura y no operar.
 
 Confirmar siempre la venta tras mostrar resumen; ligar cada confirmación al borrador y remitente. Varias confirmaciones del mismo borrador no deben crear nuevas ventas.
+
+**Contrato R1 actualizado:** usar `interpretForWhatsApp`/`findBusinessByWhatsApp` de `src/modules/data/businesses.ts`. Si no existe el negocio o no completó el alta, preguntar **nombre y giro** y llamar `completeBusinessOnboarding` únicamente después de recopilar ambos desde el remitente verificado. El giro se guarda para futuros modelos; no inferirlo automáticamente ni crear productos inventados.
+
+`createSaleDraft` devuelve `quote` y `quote_version`: mostrar ese resumen. `confirmSaleDraft` ahora requiere `quoteVersion` y devuelve `status`: solo `confirmed` contiene `receipt` y significa venta guardada. Para `price_changed`, mostrar anterior/nuevo con `formatPriceChangeNotice`, enviar otro resumen/botón y ligar la aprobación a la nueva versión. Para `quote_outdated`, volver a mostrar el resumen vigente. No usar la versión más reciente para interpretar un botón antiguo; registrar qué versión presentó cada mensaje/botón.
 
 ## Responsabilidades
 
@@ -145,3 +151,17 @@ Propiedad del esquema de negocio, componentes visuales ni despliegue.
 ## Criterio de entrega
 
 Un mensaje entrante puede asociarse a un negocio autenticado, pasar por interpretación, pedir confirmación cuando haga falta y responder por el canal de origen sin duplicar operaciones. Para la demo se prioriza Infobip; se reporta por separado qué pruebas se completaron con mocks y cuáles se verificaron con WhatsApp real.
+
+## Entrega de implementación local R2
+
+Implementación en `src/modules/messaging/`, `src/modules/orchestration/` y `src/modules/auth/`. Ver integración y pendientes en `src/modules/messaging/README.md`.
+
+Entregado: adaptador Infobip, parser de texto, autenticación Basic configurable, handler reutilizable, coordinación de almacenamiento durable mediante puerto, conversación con resumen/confirmación explícita, adaptador de borradores R1 y sesiones opacas con canje/revocación mediante almacenamiento inyectado.
+
+Comprobado: 21 pruebas unitarias/integración con mocks del proyecto, typecheck, lint de archivos R2 y build. El lint global presenta advertencia preexistente por `next-env.d.ts` ignorado. No se ha probado WhatsApp real ni persistencia real de sesiones/claims; faltan los adaptadores R1 y conexión HTTP R3. La confirmación frente a edición concurrente de precios requiere comparación atómica de R1 antes de habilitarla.
+
+### Segunda entrega R2 — integración con R1
+
+Integrado `main` con migración 004. Conversación de alta con nombre/giro explícitos y confirmación firmada ligada al remitente. Adaptador real de lookup/intérprete y confirmaciones `draftId + quoteVersion`; resumen desde quote persistida, aviso de precio cambiado y rechazo de versión antigua. Composición `createRole2Service` lista para transporte R3.
+
+Adaptadores Supabase de procesamiento durable y sesiones/enlaces entregados. SQL propuesto en `src/modules/auth/storage/role2.sql` para revisión y aplicación por R1; no aplicado local ni remoto. Faltan prueba real de esos RPC/tablas, worker de recuperación autónoma, montaje HTTP/login R3 y recepción/respuesta real Infobip. Sustituye los pendientes de lookup/intérprete/cotización señalados en la primera entrega; persisten los de infraestructura.

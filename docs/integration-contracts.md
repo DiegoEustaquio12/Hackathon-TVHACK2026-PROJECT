@@ -1,6 +1,6 @@
 # Contratos de integración — WhatsApp / Infobip
 
-Los tipos y handler siguientes son contratos **a implementar**. R3 materializa los tipos en `src/contracts/`; R1/R2 implementan adaptadores. Los repositorios de datos enumerados al final sí existen. No esperar a credenciales o componentes ajenos para empezar con mocks compatibles.
+Los contratos de transporte y el handler siguientes siguen pendientes. R1 ya entrega tipos de dominio en `src/modules/interpretation/types.ts`, parser puro en `parser.ts`, consultas/alta en `src/modules/data/businesses.ts` y resultados de confirmación en `sale-results.ts`. R3 puede adaptar/reexportar esos tipos sin modificar su `Actor` web actual. No esperar a credenciales ajenas para avanzar con mocks.
 
 ## Identidad y mensaje normalizado — R2
 
@@ -25,7 +25,7 @@ type InboundMessage = {
 
 R2 autentica el webhook con el mecanismo configurado en Infobip, valida el esquema y normaliza cada mensaje antes de crear este evento. No asumir firma Meta ni tratar reportes de entrega como ventas. El remitente proviene del evento autenticado, nunca de texto libre. Contrastar acciones con el remitente y borrador en base de datos.
 
-R1 entrega lookup de negocio por número; R2 organiza alta/vinculación segura si no existe. R2 descarga medios mediante el proveedor y entrega referencias de almacenamiento a R1; no permitir URLs arbitrarias en ese descargador.
+R1 entrega `findBusinessByWhatsApp`, `getBusinessCatalogue`, `completeBusinessOnboarding` e `interpretForWhatsApp` en `src/modules/data/businesses.ts`. R2 organiza alta/vinculación segura si no existe el negocio o faltan giro/fecha de alta. Preguntar nombre y giro explícitamente; solo después llamar `completeBusinessOnboarding({ verifiedSender, name, businessType })`. No inferir el giro ni registrar automáticamente al primer “Hola”. R2 descarga medios mediante el proveedor y entrega referencias de almacenamiento a R1; no permitir URLs arbitrarias en ese descargador.
 
 ## Interpretación — R1; P0 solo texto
 
@@ -38,13 +38,22 @@ type SaleItemInput = { product_id: string; quantity: number };
 type InterpretationResult = {
   intent: 'sale' | 'report' | 'expense' | 'unknown';
   confidence: number; // 0..1; nunca sustituye la confirmación
-  data: { items?: SaleItemInput[]; report?: 'sales_today' };
+  data: { items?: SaleItemInput[]; report?: 'sales_today'; expense?: { concept: string; amount_cents: number } };
   needsConfirmation: boolean;
   clarification?: string;
+  clarificationOptions?: { product_id: string; label: string }[];
 };
 ```
 
-R1 implementa el puerto `interpret(actor, request)` con catálogo limitado al negocio. Una venta resuelta devuelve IDs/cantidades. Una ambigüedad devuelve pregunta y ningún carrito ejecutable. Intenciones aún no implementadas no se persisten. Importes mencionados en texto no sobreescriben el catálogo; deben generar aclaración si contradicen el precio.
+R1 implementa `interpretSaleMessage(request, catalogue)` como función pura y `interpretForWhatsApp(client, verifiedSender, request)` como adaptador que resuelve negocio y catálogo. Devuelve `{ business, interpretation }`; `business` incluye giro/zona horaria. Intenciones actuales: `sale`, `expense`, `report`, `unknown`. Venta resuelta devuelve IDs/cantidades; ambigüedad devuelve pregunta y `clarificationOptions?: { product_id, label }[]`, sin carrito ejecutable. No sobreescribir precios del catálogo desde el texto.
+
+El estándar y la creación/edición de productos están en [product-standard.md](product-standard.md). Resolver “una coca” contra todas las presentaciones; si es ambiguo preguntar. La cantidad “una” equivale a 1, pero nunca significa una presentación específica. Mostrar nombres completos, contenido y unidad en el resumen.
+
+“Gasté 50 en luz” devuelve `data.expense = { concept, amount_cents }` y requiere confirmación. R2 conserva su propuesta/confirmación de gasto con una clave estable; no enviarla a `createSaleDraft`, que solo admite artículos de venta. Tras aprobación explícita invocar `recordExpense` en `src/modules/data/accounting.ts`. El repositorio es idempotente; la conversación de confirmación de gastos corresponde a R2.
+
+“¿Cuánto vendí hoy?” devuelve `data.report = 'sales_today'`. Llamar `getBusinessDailyReport` para responder con importes reales. Si retorna `TIME_ZONE_REQUIRED`, preguntar zona/localidad y configurar `setBusinessTimeZone` antes de definir el día: no inferir que todos los negocios mexicanos comparten zona. Gastos y ventas se reportan por separado; el reporte no calcula utilidad.
+
+Ver [contrato de gastos/reportes](accounting-contract.md) para fechas, reintentos y respuestas tipadas. R3 usa los repositorios de productos del servidor: la migración 005 retira escrituras directas a productos/gastos y la 006 exige snapshot `expected` para impedir sobreescritura de stock desde un formulario antiguo.
 
 R2 empieza con mock del fixture “Vendí 3 cocas y 2 panes”, usando IDs de catálogo fixture acordados. R3 no construye otro intérprete.
 
@@ -55,8 +64,8 @@ Usar `src/modules/data/conversations.ts` con cliente privilegiado de servidor:
 | Función | Entrada | Salida |
 | --- | --- | --- |
 | `registerInboundEvent` | `provider`, `providerMessageId`, `verifiedSender`, `recipient` | `event_id`, `is_new`, `status` |
-| `createSaleDraft` | `verifiedSender`, `operationKey`, `items` | `draft_id`, `status`, `expires_at` |
-| `confirmSaleDraft` | `verifiedSender`, `draftId` | `sale_id`, `total_cents`, `replayed`, `items` |
+| `createSaleDraft` | `verifiedSender`, `operationKey`, `items` | `draft_id`, `status`, `expires_at`, `quote`, `quote_version` |
+| `confirmSaleDraft` | `verifiedSender`, `draftId`, `quoteVersion` | Unión tipada: `confirmed` con `receipt`, `price_changed` o `quote_outdated` |
 | `cancelSaleDraft` | `verifiedSender`, `draftId` | `draft_id`, `status` |
 
 Detalles/errores: [contrato de datos](../src/modules/data/README.md). Deduplicar eventos por proveedor/ID y ventas por borrador son controles distintos. Crear borrador con clave estable `infobip:<id-del-mensaje-original>`; confirmar nunca usa el ID del nuevo mensaje como clave de venta.
@@ -71,6 +80,6 @@ R3 usa handler mock local mientras llega el real. Una ruta pública mock no debe
 
 ## Pendientes explícitos
 
-- Borradores actuales no reservan stock ni congelan precios: se validan al confirmar. Antes de permitir cambios de catálogo durante una conversación, R1/R2 deben detectar diferencia frente al resumen y solicitar nueva confirmación.
-- Entregar alta/vinculación antes de probar comercios nuevos; el seed no crea usuario ni WhatsApp real.
-- Definir zona horaria del negocio antes de prometer el reporte “ventas de hoy”.
+- Borradores no reservan stock. La migración 004 guarda el resumen de precios con versión y detecta cambios atómicamente al confirmar. R2 debe mostrar `previous_quote` y `quote` claramente y generar otra confirmación ligada al nuevo `quote_version`. `price_changed` y `quote_outdated` no son ventas confirmadas. `formatPriceChangeNotice` ofrece el texto de cambio. Un botón antiguo no acepta la nueva versión.
+- Alta de negocio implementada en datos; falta conversación R2 para recopilar nombre/giro desde el remitente verificado. El seed no crea usuario ni WhatsApp real. Negocios existentes sin giro deben completar alta antes de operar.
+- La zona horaria ahora se configura mediante repositorio y queda pendiente de preguntar a cada negocio antes del primer reporte; no hay una zona predeterminada silenciosa.

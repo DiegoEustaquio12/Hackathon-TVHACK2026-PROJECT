@@ -6,7 +6,11 @@ Interpretar texto, audio e imágenes con salida estructurada y persistir el domi
 
 ## Trabajo inmediato en paralelo
 
-Leer [guía paralela](../parallel-work.md), [contratos](../integration-contracts.md) y [contrato de datos](../../src/modules/data/README.md). Las migraciones 001–003 y repositorios ya se comprobaron localmente; publicar estos archivos en un PR para R2.
+**Entrega ampliada disponible:** estándar de productos y alias persistidos, creación/edición comercial segura, interpretación de “una coca” con preguntas por presentación, gastos idempotentes y reporte diario por zona IANA explícita. Migraciones 005–006; contratos en `docs/product-standard.md` y `docs/accounting-contract.md`. Sigue pendiente la interpretación de audio/imágenes, la IA y conectar estos servicios desde R2/R3.
+
+**Entrega actual:** migración 004 de alta explícita y precios versionados; parser `interpretSaleMessage`; adaptadores `findBusinessByWhatsApp`, `getBusinessCatalogue`, `interpretForWhatsApp` y `completeBusinessOnboarding`. El catálogo se obtiene por número verificado, nunca por un negocio elegido desde el mensaje. Ver contratos actualizados; los pasos siguientes describen el alcance de esta entrega y su integración.
+
+Leer [guía paralela](../parallel-work.md), [contratos](../integration-contracts.md) y [contrato de datos](../../src/modules/data/README.md). Las migraciones 001–004 y repositorios ya se comprobaron localmente; publicar esta entrega en un PR para R2.
 
 1. Entregar lookup de negocio por número normalizado y catálogo limitado al actor verificado. R2 puede usar mocks mientras se integran.
 2. Implementar `interpret(actor, request)` determinista para texto, con catálogo inyectado y sin persistir ventas.
@@ -45,6 +49,8 @@ El módulo de datos ofrece operaciones de dominio transaccionales; nunca expone 
 - Si no hay existencia suficiente para un renglón, el producto se muestra como **agotado** y la venta no se confirma parcialmente. La interfaz ofrece corregir la cantidad o quitar el producto.
 - Una cantidad de stock igual a cero significa agotado. El stock es obligatorio y no puede ser negativo.
 - Cada negocio tiene un solo usuario propietario. La identidad de WhatsApp debe vincularse a un negocio de forma única; el cliente nunca puede escoger el `business_id`.
+- Alta explícita con nombre y giro obligatorios; guardar el giro como contexto para futuros modelos de creación asistida de productos. Las ventas no dan de alta negocios ni productos automáticamente.
+- El resumen de precios lleva versión. Si cambia el catálogo, devolver resumen anterior/nuevo y pedir otra confirmación; la clave idempotente de venta continúa ligada al borrador.
 - Validar stock, reservar/descontar, insertar cabecera y renglones y comprobar total deben ocurrir atómicamente para impedir ventas parciales o sobreventa por solicitudes simultáneas.
 - La operación está implementada en `record_whatsapp_sale`, invocable únicamente desde servidor con `service_role`. Resuelve el negocio por su `whatsapp_id` único; el número debe venir del remitente normalizado de un webhook autenticado según el proveedor (Infobip para la demo). Ver `src/modules/data/README.md` para el contrato del rol 2.
 - La migración 003 agrega registro de eventos por `(provider, provider_message_id)` y borradores ligados al negocio/remitente, con vencimiento inicial de 15 minutos, cancelación y confirmación idempotente. La clave de venta depende del borrador y no del mensaje que confirma.

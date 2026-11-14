@@ -13,20 +13,18 @@ function wav() {
 test("text, image and audio roundtrip with history, keyboard and accessibility", async ({ page }) => {
   const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
   await page.goto("/chat");
-  await expect(page.getByRole("button", { name: "Grabar nota de voz" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Enviar mensaje" })).toBeEnabled();
   await page.keyboard.press("Tab"); await expect(page.getByRole("link", { name: "Saltar al contenido" })).toBeFocused();
   await page.keyboard.press("Enter");
   await page.getByLabel("Tu mensaje").fill("Quiero revisar mis pedidos");
   await page.getByRole("button", { name: "Enviar mensaje" }).click();
-  await expect(page.getByRole("log")).toContainText("Aquí puedes llevar un registro local sin WhatsApp");
-  await page.getByRole("button", { name: "Adjuntar archivo", exact: true }).click();
+  await expect(page.getByRole("log")).toContainText("Esta respuesta es una simulación");
   await page.getByRole("radio", { name: "Imagen" }).check();
   await page.getByLabel("Archivo de imagen").setInputFiles({ name: "estante.png", mimeType: "image/png", buffer: png });
   await page.getByLabel("Descripción de la imagen").fill("Estante con productos");
   await expect(page.getByRole("img", { name: "Estante con productos" })).toBeVisible();
   await page.getByRole("button", { name: "Enviar mensaje" }).click();
   await expect(page.getByRole("log")).toContainText("Recibí la imagen");
-  await page.getByRole("button", { name: "Adjuntar archivo", exact: true }).click();
   await page.getByRole("radio", { name: "Audio", exact: true }).check();
   await page.getByLabel("Archivo de audio").setInputFiles({ name: "nota.wav", mimeType: "audio/wav", buffer: wav() });
   await expect(page.getByLabel("Vista previa del audio seleccionado")).toBeVisible();
@@ -81,7 +79,7 @@ test("API errors and loading states are visible and recoverable", async ({ page 
   await page.getByRole("button", { name: "Actualizar panel" }).click();
   await expect(page.getByRole("row").filter({ hasText: "PED-1042" })).toBeVisible();
   await page.goto("/chat");
-  await expect(page.getByRole("button", { name: "Grabar nota de voz" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Enviar mensaje" })).toBeEnabled();
   await page.route("**/api/chat/messages", route => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ code: "UNAVAILABLE", message: "No se pudo enviar. Intenta de nuevo." }) }));
   await page.getByLabel("Tu mensaje").fill("Conservar este mensaje");
   await page.getByRole("button", { name: "Enviar mensaje" }).click();
@@ -89,7 +87,7 @@ test("API errors and loading states are visible and recoverable", async ({ page 
   await expect(page.getByLabel("Tu mensaje")).toHaveValue("Conservar este mensaje");
   await page.unroute("**/api/chat/messages");
   await page.getByRole("button", { name: "Enviar mensaje" }).click();
-  await expect(page.getByRole("log")).toContainText("Aquí puedes llevar un registro local sin WhatsApp");
+  await expect(page.getByRole("log")).toContainText("Esta respuesta es una simulación");
 });
 
 test("Knectan orders can be added and removed with keyboard confirmation and persistent KPIs", async ({ page }, testInfo) => {
@@ -162,50 +160,4 @@ test("supplier plans compare, recommend and activate in mock mode without overfl
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   }
   await expect(page.locator("body")).toContainText("Knectan");
-});
-
- test("local chat confirms operations, keeps drafts after failure, and supports emoji", async ({ page }, testInfo) => {
-  await page.goto("/chat");
-  await expect(page.getByRole("button", { name: "Grabar nota de voz" })).toBeEnabled();
-  await page.getByLabel("Tu mensaje").fill("Vendí 3 cocas y 2 panes");
-  await page.getByLabel("Tu mensaje").press("Enter");
-  await expect(page.getByRole("log")).toContainText("Total: $80.00");
-  await page.getByLabel("Tu mensaje").fill("confirmar");
-  await page.getByLabel("Tu mensaje").press("Enter");
-  await expect(page.getByRole("log")).toContainText("Venta registrada");
-  await page.reload();
-  await page.getByLabel("Tu mensaje").fill("ventas de hoy");
-  await page.getByRole("button", { name: "Enviar mensaje" }).click();
-  await expect(page.getByRole("log")).toContainText("Ventas: $80.00");
-  await page.route("**/api/chat/messages", route => route.request().method() === "POST" ? route.abort() : route.continue());
-  await page.getByLabel("Tu mensaje").fill("Gasté 50 en luz");
-  await page.getByLabel("Tu mensaje").press("Enter");
-  await expect(page.locator("#chat-error")).toContainText("No hay conexión");
-  await expect(page.getByLabel("Tu mensaje")).toHaveValue("Gasté 50 en luz");
-  await page.unroute("**/api/chat/messages");
-  await page.getByRole("button", { name: "Enviar mensaje" }).click();
-  await expect(page.getByRole("log")).toContainText("¿Registro este gasto?");
-  await page.getByLabel("Tu mensaje").fill("cancelar");
-  await page.getByLabel("Tu mensaje").press("Enter");
-  await expect(page.getByRole("log")).toContainText("Operación cancelada");
-  await page.getByRole("button", { name: "Elegir emoji", exact: true }).click();
-  await page.getByRole("button", { name: "Añadir 👍" }).click();
-  await expect(page.getByLabel("Tu mensaje")).toHaveValue("👍");
-  await page.screenshot({ path: testInfo.outputPath("chat-local.png"), fullPage: true });
-});
-
-test("voice notes record and send from the composer", async ({ page, context }) => {
-  await context.grantPermissions(["microphone"]);
-  await page.goto("/chat");
-  const microphone = page.getByRole("button", { name: "Grabar nota de voz" });
-  await expect(microphone).toBeEnabled();
-  await microphone.click();
-  await expect(page.getByRole("status").filter({ hasText: "Grabando audio" })).toBeVisible();
-  await expect.poll(() => page.evaluate(() => navigator.mediaDevices.enumerateDevices().then(d => d.some(v => v.kind === "audioinput")))).toBe(true);
-  // Allow the recorder to produce an actual audio chunk from the fake microphone.
-  await page.waitForTimeout(700);
-  await page.getByRole("button", { name: "Detener", exact: true }).click();
-  await expect(page.getByLabel("Vista previa del audio seleccionado")).toBeVisible();
-  await page.getByRole("button", { name: "Enviar mensaje" }).click();
-  await expect(page.getByRole("log")).toContainText("Recibí el audio");
 });

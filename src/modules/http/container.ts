@@ -4,12 +4,10 @@ import { createMockServices, type MockServices } from "./mocks/services";
 import { orderCookieScope } from "./mocks/order-cookie";
 import { HttpError } from "./errors";
 import { isMockMode } from "./session";
-import { createLocalChatService } from "./local-chat";
 
 type Runtime = { mocks: MockServices; services?: HttpServices; verifier?: SessionVerifier };
 const scope = globalThis as typeof globalThis & { knectanHttp?: Runtime };
 const runtime = scope.knectanHttp ??= { mocks: createMockServices() };
-const localChat = createLocalChatService();
 
 /** Server bootstrap integration point for R1/R2. Never call from a browser. */
 export function configureHttp(services: HttpServices, verifier: SessionVerifier) {
@@ -20,7 +18,7 @@ export function prepareResponseCookie(request: Request, actor: Actor): (() => st
   if (isMockMode() && new URL(request.url).pathname.startsWith("/api/distributor/")) return orderCookieScope(request, actor, runtime.mocks);
 }
 export function getServices(): HttpServices {
-  if (isMockMode()) return process.env.LOCAL_CHAT_MODE === "true" ? { ...runtime.mocks, chat: localChat } : runtime.mocks;
+  if (isMockMode()) return runtime.mocks;
   if (!runtime.services) throw new HttpError(503, "SERVICES_UNAVAILABLE", "Los servicios todavía no están conectados.");
   return runtime.services;
 }

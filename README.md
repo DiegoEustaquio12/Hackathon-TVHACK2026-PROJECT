@@ -1,6 +1,6 @@
-# MicroAI
+# Knectan
 
-Base inicial del MVP descrito en `MicroAI_MVP_Arquitectura_Plan.md` (documento fuente fuera del repositorio).
+MVP de Knectan para comercios y proveedores, basado en el documento de arquitectura fuente fuera del repositorio.
 
 ## Stack
 
@@ -16,7 +16,7 @@ Base inicial del MVP descrito en `MicroAI_MVP_Arquitectura_Plan.md` (documento f
 2. Copiar `.env.example` a `.env.local`; `MOCK_MODE=true` permite ejecutar sin credenciales externas.
 3. `npm run dev`
 
-Demo: `/chat` y `/distribuidores`. Validación: `npm run validate`, `npm run build` y `npm run test:e2e`.
+Demo: `/chat`, `/distribuidores` y `/publicidad`. Incluye alta/baja de pedidos con KPIs y selector de tres planes de visibilidad con activación simulada. Validación: `npm run validate`, `npm run build` y `npm run test:e2e`.
 La guía de entorno, pruebas, contratos y despliegue está en [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 El webhook real está en `POST /api/webhooks/infobip`; requiere habilitación y configuración de servidor independientes de los mocks web. Ver la sección de Infobip en la guía de despliegue. Integración contra base local: `python3 scripts/check-role2-local.py` (solo el proveedor saliente se simula).

@@ -1,21 +1,24 @@
 import { randomUUID } from "node:crypto";
 import type { Actor, ChatHistory, ChatInput, DashboardQuery, HttpServices, Order, OrderStatus, SendMessageResponse, UpdateOrderInput } from "../../../contracts";
 import { HttpError } from "../errors";
+import { supplierPlans } from "../../../contracts/plans";
+import { assertOrderSnapshotFits, MAX_DEMO_ORDERS } from "./order-cookie";
 
 const nextStatuses: Record<OrderStatus, OrderStatus[]> = {
   pending: ["confirmed", "cancelled"], confirmed: ["dispatched", "cancelled"], dispatched: ["delivered"], delivered: [], cancelled: [],
 };
 const iso = () => new Date().toISOString();
-type State = { touched: number; bytes: number; history: ChatHistory; orders: Order[]; replies: Map<string, { input: string; result: SendMessageResponse }> };
+type State = { touched: number; bytes: number; history: ChatHistory; orders: Order[]; ordersRevision: number; replies: Map<string, { input: string; result: SendMessageResponse }> };
 export interface MockServices extends HttpServices {
-  restoreOrders(actor: Actor, orders: Order[]): void;
+  restoreOrders(actor: Actor, orders: Order[], revision: number): void;
   snapshotOrders(actor: Actor): Order[];
+  snapshotOrderRevision(actor: Actor): number;
 }
 
 function fixtures(): Order[] {
   const customers = ["Abarrotes La Esquina", "Mini Súper Los Pinos", "Tienda El Sol", "Abarrotes San Miguel", "Miscelánea Las Flores", "Mini Súper Central"];
   const statuses: OrderStatus[] = ["pending", "pending", "confirmed", "dispatched", "delivered", "cancelled"];
-  return customers.map((customer, i) => ({ id: `PED-${1042 + i}`, customer, items_count: [12, 8, 24, 6, 18, 9][i],
+  return customers.map((customer, i) => ({ id: `PED-${1042 + i}`, customer, channel: i % 2 ? "web" : "whatsapp", items_count: [12, 8, 24, 6, 18, 9][i],
     total_cents: [248050, 132000, 564080, 98750, 326400, 174500][i], status: statuses[i],
     created_at: new Date(Date.now() - (i + 1) * 3600000).toISOString(), updated_at: iso(), version: 1,
     allowed_statuses: [...nextStatuses[statuses[i]]],
@@ -31,21 +34,23 @@ export function createMockServices(): MockServices {
     let value = states.get(key);
     if (!value) {
       if (states.size >= 100) states.delete(states.keys().next().value!);
-      value = { touched: now, bytes: 0, history: { conversationId: randomUUID(), messages: [] }, orders: fixtures(), replies: new Map() };
+      value = { touched: now, bytes: 0, history: { conversationId: randomUUID(), messages: [] }, orders: fixtures(), ordersRevision: 0, replies: new Map() };
       states.set(key, value);
     }
     value.touched = now;
     return value;
   }
   return {
-    restoreOrders(actor, orders) {
+    restoreOrders(actor, orders, revision) {
+      // The signed snapshot is the whole collection, including additions and removals.
       const current = state(actor);
-      for (const incoming of orders) {
-        const local = current.orders.find(o => o.id === incoming.id);
-        if (local && incoming.version >= local.version) Object.assign(local, structuredClone(incoming));
+      // A stale request must not undo a newer local write or resurrect a deletion.
+      if (revision >= current.ordersRevision) {
+        current.orders = structuredClone(orders); current.ordersRevision = revision;
       }
     },
     snapshotOrders(actor) { return structuredClone(state(actor).orders); },
+    snapshotOrderRevision(actor) { return state(actor).ordersRevision; },
     chat: {
       async history(actor) { return structuredClone(state(actor).history); },
       async send(actor, input: ChatInput) {
@@ -80,6 +85,31 @@ export function createMockServices(): MockServices {
       },
     },
     distributor: {
+      async createOrder(actor, input) {
+        const current = state(actor);
+        if (current.orders.length >= MAX_DEMO_ORDERS) throw new HttpError(409, "DEMO_ORDER_LIMIT", "Puedes guardar hasta 30 pedidos en esta demo. Quita uno para continuar.");
+        const timestamp = iso();
+        const order: Order = { ...input, id: `PED-${randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase()}`,
+          status: "pending", created_at: timestamp, updated_at: timestamp, version: 1, allowed_statuses: [...nextStatuses.pending] };
+        assertOrderSnapshotFits(actor, [order, ...current.orders]);
+        current.orders.unshift(order);
+        current.ordersRevision++;
+        return structuredClone(order);
+      },
+      async deleteOrder(actor, orderId, input) {
+        const current = state(actor);
+        const order = current.orders.find(o => o.id === orderId);
+        if (!order) throw new HttpError(404, "ORDER_NOT_FOUND", "No encontramos ese pedido.");
+        if (order.version !== input.expected_version) throw new HttpError(409, "ORDER_CONFLICT", "El pedido cambió. Actualiza el panel antes de quitarlo.");
+        current.orders = current.orders.filter(o => o.id !== orderId);
+        current.ordersRevision++;
+        return { orderId, deleted_at: iso() };
+      },
+      async activatePlan(actor, input) {
+        state(actor);
+        const plan = supplierPlans.find(p => p.id === input.planId)!;
+        return { planId: plan.id, monthly_price_cents: plan.monthly_price_cents, status: "mock_active", activated_at: iso() };
+      },
       async dashboard(actor, query: DashboardQuery) {
         const orders = state(actor).orders;
         return { business_name: "Distribuidora de demostración", updated_at: iso(), kpis: {
@@ -94,7 +124,10 @@ export function createMockServices(): MockServices {
         if (!order) throw new HttpError(404, "ORDER_NOT_FOUND", "No encontramos ese pedido.");
         if (order.version !== input.expected_version) throw new HttpError(409, "ORDER_CONFLICT", "El pedido cambió. Actualiza el panel antes de intentarlo de nuevo.");
         if (!nextStatuses[order.status].includes(input.status)) throw new HttpError(409, "INVALID_STATUS_TRANSITION", "Ese cambio de estado no está disponible.");
-        order.status = input.status; order.version++; order.updated_at = iso(); order.allowed_statuses = [...nextStatuses[input.status]];
+        const updated = { ...order, status: input.status, version: order.version + 1, updated_at: iso(), allowed_statuses: [...nextStatuses[input.status]] };
+        assertOrderSnapshotFits(actor, state(actor).orders.map(o => o.id === orderId ? updated : o));
+        Object.assign(order, updated);
+        state(actor).ordersRevision++;
         return structuredClone(order);
       },
     },

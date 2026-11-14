@@ -1,0 +1,9 @@
+.dialog { color: var(--color-ink); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; width: min(520px, calc(100% - 32px)); max-height: calc(100dvh - 40px); padding: 28px; overflow-y: auto; box-shadow: 0 24px 70px #172b2140; }
+.dialog::backdrop { background: #172b217a; }
+.dialog h2 { margin: 0 0 12px; font-size: 24px; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.dialog p { color: var(--color-muted); }
+.form { display: grid; gap: 18px; }
+.actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+.danger { color: var(--color-error); border-color: var(--color-error); }
+.fieldError { color: var(--color-error); font-size: 14px; }
+@media(max-width:540px) { .dialog { padding: 24px 20px; } .actions { flex-direction: column-reverse; } }

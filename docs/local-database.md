@@ -1,6 +1,6 @@
-# Base local de MicroAI
+# Base local de Knectan
 
-La CLI está vinculada a `microai-dev`. En Supabase CLI 3, los comandos de base de datos apuntan al entorno local por defecto. Revisar siempre la línea `Target:` antes de aplicar cambios; `--remote` apunta al proyecto alojado.
+La CLI conserva su vinculación al proyecto Supabase alojado existente. El rebranding de la aplicación no renombra ese recurso externo. En Supabase CLI 3, los comandos de base de datos apuntan al entorno local por defecto. Revisar siempre la línea `Target:` antes de aplicar cambios; `--remote` apunta al proyecto alojado.
 
 ## Inicio y datos de ejemplo
 

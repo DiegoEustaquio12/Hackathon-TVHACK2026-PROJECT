@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { audioMimeTypes, chatInputSchema, historySchema, imageMimeTypes, MAX_MEDIA_BYTES, sendMessageResponseSchema, type ChatInput, type ChatMessage } from "@/src/contracts/chat";
 import { api, errorMessage, jsonRequest } from "./api-client";
 import { Icon } from "./icon";
+import { BrandLogo } from "./brand-logo";
 import ui from "./workspace.module.css";
 import styles from "./chat.module.css";
 
@@ -114,10 +115,10 @@ export function Chat({ mock }: { mock: boolean }) {
     <div className={ui.heading}><div><h1>Asistente para tu comercio</h1><p>Envía un mensaje, una foto o un audio desde un solo lugar.</p></div></div>
     <div className={styles.layout}>
       <section className={styles.conversation} aria-label="Conversación con el asistente">
-        <header className={styles.conversationHeader}><div className={styles.avatar}><Icon name="chat" /></div><div><h2>Asistente MicroAI</h2><p>{mock ? "Respuestas simuladas · Sin operaciones reales" : "Conversación de tu comercio"}</p></div></header>
+        <header className={styles.conversationHeader}><BrandLogo compact /><div><h2>Asistente Knectan</h2><p>{mock ? "Respuestas simuladas · Sin operaciones reales" : "Conversación de tu comercio"}</p></div></header>
         <div className={styles.messages} ref={list} role="log" aria-label="Historial de conversación" aria-live="polite" aria-relevant="additions" aria-busy={loading} tabIndex={0}>
           {loading ? <p role="status">Cargando conversación…</p> : messages.length === 0 ? <div className={styles.welcome}><div className={styles.avatar}><Icon name="chat" /></div><h2>Tu próxima conversación empieza aquí</h2><p>Escribe lo que necesitas o adjunta un archivo. {mock && "Puedes recorrer el flujo con respuestas de demostración."}</p></div>
-            : messages.map(message => <article className={styles.message} data-role={message.role} key={message.id}><strong>{message.role === "user" ? "Tú" : "MicroAI"}</strong><MessageContent content={message.content} /><time dateTime={message.created_at}>{time(message.created_at)}</time></article>)}
+            : messages.map(message => <article className={styles.message} data-role={message.role} key={message.id}><strong>{message.role === "user" ? "Tú" : "Knectan"}</strong><MessageContent content={message.content} /><time dateTime={message.created_at}>{time(message.created_at)}</time></article>)}
           {busy && <p role="status">Enviando mensaje…</p>}
         </div>
         <form className={styles.composer} onSubmit={send} aria-busy={busy}>

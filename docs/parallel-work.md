@@ -1,4 +1,4 @@
-# Trabajo paralelo — Knectan / MicroAI
+# Trabajo paralelo — Knectan
 
 Actualizado: 14 de noviembre de 2026. Canal principal: **WhatsApp mediante Infobip**. El comerciante opera dentro del chat. Flows queda fuera del MVP actual; la web sirve para paneles y apoyo.
 
@@ -8,12 +8,12 @@ Leer esta guía y [los contratos](integration-contracts.md). Después continuar 
 
 | Parte | Estado y evidencia | Pendiente |
 | --- | --- | --- |
-| Datos / R1 | Migraciones 001–007 aplicadas localmente y en microai-dev; dominio y permisos SQL comprobados | Conexión de paneles, IA y medios |
-| Infobip / R2 | Adaptador, autenticación, alta, ventas/gastos/reportes, selecciones por renglón y cancelación persistente | Configurar perfil real y comprobar entrada/respuesta por WhatsApp |
-| HTTP / R3 | Demo web, contratos y ruta real Infobip compilada | Credenciales, URL pública y despliegue verificado |
+| Datos / R1 | Migraciones 001–008 aplicadas localmente y en microai-dev; dominio, almacenamiento privado y permisos SQL comprobados | Conexión de paneles y aceptación externa de IA/medios |
+| Infobip / R2 | Adaptador, autenticación, alta, ventas/gastos/reportes y descarga AUDIO/IMAGE con almacenamiento privado | Configurar cuenta y comprobar entrada/respuesta por WhatsApp real |
+| HTTP / R3 | Demo Knectan, contratos, publicidad/pedidos mock y ruta real Infobip compilada | Credenciales, URL pública y despliegue verificado |
 | Supabase alojado | `microai-dev` migrado hasta 008; aceptación SQL con rollback aprobada | Conectar despliegue y comprobar recorrido externo |
 
-La entrega correctiva se guardó en el commit local `42babeb`; aún no se ha publicado mediante push. Documentar una función no sustituye entregar su implementación.
+Las entregas correctivas están versionadas en Git; consultar `git status` y el historial para comprobar publicación. Documentar una función no sustituye entregar su implementación.
 
 ## Trabajo inmediato en paralelo
 
@@ -41,7 +41,7 @@ El parser de **payload Infobip** es de R2; el intérprete de **ventas del comerc
 3. Entregar PRs pequeños con archivos completos, instrucciones reproducibles, fixtures sanitizados y verificaciones reales. Evitar copias divergentes de contratos.
 4. Para modificar una carpeta ajena, describir el cambio de interfaz en el PR y coordinar con el propietario; continuar las tareas independientes.
 5. Cada persona configura sus variables locales. Secretos fuera de Git; datos ficticios en fixtures.
-6. R1 controla el orden de migraciones: conservar aplicadas y añadir nuevas. Una sola persona designada despliega migraciones a `microai-dev` tras comprobar el destino; R3 configura el despliegue contra ese mismo entorno.
+6. R1 controla el orden de migraciones: conservar aplicadas y añadir nuevas. Una sola persona designada despliega migraciones a el proyecto Supabase alojado vinculado por la CLI tras comprobar el destino; R3 configura el despliegue contra ese mismo entorno.
 7. R3 coordina dependencias para evitar ediciones simultáneas a `package.json` y lockfile; incluir ambos cuando corresponda.
 
 ## Hitos
@@ -69,6 +69,6 @@ El hito B está comprobado contra Supabase local con proveedor saliente simulado
 
 ## Acuerdo multimedia vigente
 
-Audios e imágenes: **Supabase Storage privado** para el MVP; S3 aplazado. R1 entrega `createSupabaseMediaStore` y migración 008 (aplicada localmente y en microai-dev); R2 ya conecta descarga segura desde Infobip a `save`, pendiente de aceptación externa; R3 aplica configuración/flag de servidor y coordina despliegue de 008. No implementar almacenamiento AWS paralelo. Ver [media-storage.md](media-storage.md).
+Audios e imágenes: **Supabase Storage privado** para el MVP; S3 aplazado. R1 entrega `createSupabaseMediaStore` y migración 008 (aplicada localmente y en microai-dev); R2 ya conecta descarga segura desde Infobip a `save`, pendiente de aceptación externa; R3 aplica configuración/flag de servidor y coordina el despliegue de la aplicación contra 008 ya aplicada. No implementar almacenamiento AWS paralelo. Ver [media-storage.md](media-storage.md).
 
 Actualización multimedia: 008 ya está aplicada y comprobada en microai-dev. Descarga Infobip AUDIO/IMAGE y primera extracción/revisión de tickets implementadas, con flags desactivados por defecto. Antes de producción faltan credenciales, HTTPS/enrutamiento y comprobar evento/redirecciones reales. La prueba local usa Supabase DB/Storage/Auth reales y HTTP externos simulados; no equivale a WhatsApp real. Ver [tickets](receipt-interpretation.md).

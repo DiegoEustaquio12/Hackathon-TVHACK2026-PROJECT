@@ -257,3 +257,11 @@ El usuario prefiere español claro, acciones concretas y continuidad autónoma. 
 - Validación: tipos, lint, 110 pruebas, build y webhook local completo con Supabase DB/Storage/Auth reales; HTTP externos Infobip/OpenAI simulados. Audio no descuenta hasta aprobación; ticket/clasificación no crean ventas/gastos. Replays evitan repetir IA. Fixtures limpiados.
 - Bloqueo externo comprobado sin imprimir secretos: no hay OPENAI_API_KEY ni credenciales Infobip operativas configuradas en el entorno revisado, ni vínculo .vercel local. WhatsApp/OpenAI reales, precisión, costo y latencia no comprobados. Revisar el payload real y orígenes antes de activar flags. No pedir claves por chat.
 - Guía vigente: docs/receipt-interpretation.md. Trabajo lento/lotes grandes requieren cola/worker con renovación pendiente; retención y limpieza de huérfanos siguen pendientes.
+
+## Integración autorizada del equipo antes del push
+
+- Usuario autorizó explícitamente merge, resolución, validación y push. Integrado `origin/main` hasta `f3ef0b0` con las entregas R1 `89b096e` y `e3260ba`, conservando ambos historiales.
+- El equipo revirtió la copia `test chat/`; no se conserva en el árbol final. Llegaron skills en `.agents/` y cambios de interfaz Knectan, publicidad y creación/eliminación de pedidos mock. No confundir esos paneles con datos contables reales.
+- Único archivo con conflicto: `docs/parallel-work.md`; se conservó el estado comprobado de 001–008/medios y los avances R3. Se eliminó la referencia generada a `.next` en `next-env.d.ts` para mantener typecheck en checkout limpio.
+- Package npm ahora `knectan`. Validación posterior al merge: tipos/lint y 118 pruebas aprobadas (una integración local omitida por defecto), build aprobado y 10 E2E aprobadas en escritorio/móvil con demo mock. Se instaló Chromium headless de Playwright para ejecutarlas.
+- Estas verificaciones no prueban WhatsApp/OpenAI reales ni cambian el estado remoto de migraciones. La publicación Git debe comprobarse con `git status`/`git log`; no hubo despliegue de aplicación en este cierre.

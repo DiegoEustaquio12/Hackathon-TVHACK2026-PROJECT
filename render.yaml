@@ -6,6 +6,7 @@ services:
     region: oregon
     branch: codex/whatsapp-deploy
     buildCommand: npm ci && npm run build
+    rootDir: .
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:

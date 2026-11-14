@@ -1,4 +1,4 @@
-# Trabajo paralelo — Knectan / MicroAI
+# Trabajo paralelo — Knectan
 
 Actualizado: 14 de noviembre de 2026. Canal principal: **WhatsApp mediante Infobip**. El comerciante opera dentro del chat. Flows queda fuera del MVP actual; la web sirve para paneles y apoyo.
 
@@ -11,7 +11,7 @@ Leer esta guía y [los contratos](integration-contracts.md). Después continuar 
 | Datos / R1 | Migraciones 001–006 aplicadas localmente; ventas/borradores, alta, catálogo estructurado, edición protegida, parser de texto, gastos y reporte diario | Conectar conversaciones/paneles R2/R3; IA y medios |
 | Infobip / R2 | El plan recibido reporta un envío real recibido por el destinatario | Adaptador, autenticación del webhook, entrada real y conversación automática |
 | HTTP / R3 | Esqueleto Next.js con páginas iniciales | Contratos TS, endpoint público, paneles y despliegue |
-| Supabase alojado | Repositorio vinculado a `microai-dev` | No asumir migraciones locales desplegadas allí |
+| Supabase alojado | Repositorio vinculado al proyecto Supabase alojado existente | No asumir migraciones locales desplegadas allí |
 
 Varios archivos de `src/`, migraciones y comprobaciones siguen sin seguimiento de Git: incluirlos en los PRs. Documentar una función no sustituye entregar su implementación.
 
@@ -41,7 +41,7 @@ El parser de **payload Infobip** es de R2; el intérprete de **ventas del comerc
 3. Entregar PRs pequeños con archivos completos, instrucciones reproducibles, fixtures sanitizados y verificaciones reales. Evitar copias divergentes de contratos.
 4. Para modificar una carpeta ajena, describir el cambio de interfaz en el PR y coordinar con el propietario; continuar las tareas independientes.
 5. Cada persona configura sus variables locales. Secretos fuera de Git; datos ficticios en fixtures.
-6. R1 controla el orden de migraciones: conservar aplicadas y añadir nuevas. Una sola persona designada despliega migraciones a `microai-dev` tras comprobar el destino; R3 configura el despliegue contra ese mismo entorno.
+6. R1 controla el orden de migraciones: conservar aplicadas y añadir nuevas. Una sola persona designada despliega migraciones a el proyecto Supabase alojado vinculado por la CLI tras comprobar el destino; R3 configura el despliegue contra ese mismo entorno.
 7. R3 coordina dependencias para evitar ediciones simultáneas a `package.json` y lockfile; incluir ambos cuando corresponda.
 
 ## Hitos

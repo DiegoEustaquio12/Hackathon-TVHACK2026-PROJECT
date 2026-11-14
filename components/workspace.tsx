@@ -1,16 +1,18 @@
 import Link from "next/link";
 import { Icon } from "./icon";
+import { BrandLogo } from "./brand-logo";
 import styles from "./workspace.module.css";
 
-export function Workspace({ active, mock, children }: { active: "chat" | "distributors"; mock: boolean; children: React.ReactNode }) {
+export function Workspace({ active, mock, children }: { active: "chat" | "distributors" | "advertising"; mock: boolean; children: React.ReactNode }) {
   return <div className={styles.shell}>
     <aside className={styles.sidebar}>
-      <Link className={styles.brand} href="/">Micro<span>AI</span></Link>
+      <Link className={styles.brand} href="/" aria-label="Knectan, inicio"><BrandLogo /></Link>
       <nav className={styles.nav} aria-label="Navegación principal">
         <Link href="/chat" aria-current={active === "chat" ? "page" : undefined}><Icon name="chat" /> Asistente</Link>
         <Link href="/distribuidores" aria-current={active === "distributors" ? "page" : undefined}><Icon name="orders" /> Distribuidores</Link>
+        <Link href="/publicidad" aria-current={active === "advertising" ? "page" : undefined}><Icon name="visibility" /> Publicidad</Link>
       </nav>
-      <div className={styles.sidebarFoot}><p>Tu comercio, al día.</p><p>MicroAI · Espacio de trabajo</p></div>
+      <div className={styles.sidebarFoot}><p>Tu comercio, al día.</p><p>Knectan · Espacio de trabajo</p></div>
     </aside>
     <div className={styles.body}>
       <header className={styles.topbar}><p>{mock ? "Comercio de demostración" : "Espacio de trabajo"}</p>{mock && <span className={styles.badge}>Demo local</span>}</header>

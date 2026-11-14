@@ -9,7 +9,7 @@ Entregar el transporte público de Infobip y los paneles de Knectan. WhatsApp es
 1. Materializar en `src/contracts/` los tipos documentados de Actor, mensaje, interpretación y errores. Mantener mocks compatibles para que R1/R2 no esperen al despliegue.
 2. Preparar `POST /api/webhooks/infobip` con handler inyectable, límite de tamaño y lectura única del cuerpo. Entregar bytes/cabeceras originales a R2; autenticación y clasificación pertenecen a R2. Probar con handler mock mientras llega el real.
 3. Publicar HTTPS en Vercel y entregar URL/método/estado a R2 para configurar enrutamiento. Diferenciar ruta montada de integración real; el mock público no puede fingir efectos de venta.
-4. Actualizar `.env.example` con nombres de variables acordados con R2, sin secretos. El cliente privilegiado Supabase vive en servidor; la app alojada apunta a `microai-dev`, no a la base local.
+4. Actualizar `.env.example` con nombres de variables acordados con R2, sin secretos. El cliente privilegiado Supabase vive en servidor; la app alojada apunta al proyecto Supabase alojado vinculado por la CLI, no a la base local.
 5. Implementar panel de productos con precio/stock editables fuera de la venta y luego reportes. Usar catálogo fixture mientras R1 entrega consultas; auth mock únicamente en desarrollo local mientras R2 entrega sesiones.
 6. Reemplazar mocks por adaptadores reales. Coordinar con R1 las migraciones de la base alojada antes del tráfico real; una persona designada las despliega.
 

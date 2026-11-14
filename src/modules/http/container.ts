@@ -6,8 +6,8 @@ import { HttpError } from "./errors";
 import { isMockMode } from "./session";
 
 type Runtime = { mocks: MockServices; services?: HttpServices; verifier?: SessionVerifier };
-const scope = globalThis as typeof globalThis & { microaiHttp?: Runtime };
-const runtime = scope.microaiHttp ??= { mocks: createMockServices() };
+const scope = globalThis as typeof globalThis & { knectanHttp?: Runtime };
+const runtime = scope.knectanHttp ??= { mocks: createMockServices() };
 
 /** Server bootstrap integration point for R1/R2. Never call from a browser. */
 export function configureHttp(services: HttpServices, verifier: SessionVerifier) {

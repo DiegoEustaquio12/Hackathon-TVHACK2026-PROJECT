@@ -89,7 +89,7 @@ describe("real route exports against mock services", () => {
   });
   it("fails closed without a verified session outside mock mode and rejects tampered/expired mock cookies", async () => {
     vi.stubEnv("MOCK_MODE", "false");
-    const endpoints = [getHistory(request("/api/chat/messages")), postMessage(request("/api/chat/messages", undefined, {}, "POST")), getDashboard(request("/api/distributor/dashboard")), patch("microai_demo=fake", {})];
+    const endpoints = [getHistory(request("/api/chat/messages")), postMessage(request("/api/chat/messages", undefined, {}, "POST")), getDashboard(request("/api/distributor/dashboard")), patch("knectan_demo=fake", {})];
     for (const response of await Promise.all(endpoints)) { expect(response.status).toBe(401); expect(errorSchema.parse(await response.json()).code).toBe("UNAUTHORIZED"); }
     vi.stubEnv("MOCK_MODE", "true");
     const cookie = await session();

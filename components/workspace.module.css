@@ -3,6 +3,8 @@
 .sidebar :focus-visible { outline-color: #d0f1dc; }
 .brand { color: white; text-decoration: none; font-size: 25px; font-weight: 750; letter-spacing: -.04em; padding: 0 12px; }
 .brand span { color: #bce4ce; }
+.brand { padding: 0; width: fit-content; max-width: 100%; }
+.brand img { max-width: 100%; height: auto; }
 .nav { display: grid; gap: 8px; }
 .nav a { display: flex; gap: 12px; align-items: center; color: #e3eee8; text-decoration: none; min-height: 48px; padding: 12px; border-radius: 8px; font-size: 15px; }
 .nav a:hover { background: #25523d; }
@@ -36,3 +38,4 @@
 .skeleton { height: 68px; background: var(--color-paper); border-radius: 6px; margin: 16px 0; }
 @media (max-width: 1000px) { .shell { grid-template-columns: 190px minmax(0,1fr); } .content { padding: 28px 24px; } .topbar { padding-inline: 24px; } }
 @media (max-width: 720px) { .shell { display: block; } .sidebar { padding: 18px 16px 12px; gap: 16px; } .brand { padding: 0; } .nav { display: flex; gap: 8px; } .nav a { flex: 1; justify-content: center; padding: 10px 8px; font-size: 14px; } .sidebarFoot { display: none; } .topbar { min-height: 64px; padding: 12px 16px; } .content { padding: 28px 16px; } .heading { align-items: flex-start; flex-wrap: wrap; } .heading h1 { font-size: 26px; } }
+@media (max-width: 720px) { .nav a { min-width: 0; flex-direction: column; font-size: 12px; padding: 8px 4px; gap: 4px; } }

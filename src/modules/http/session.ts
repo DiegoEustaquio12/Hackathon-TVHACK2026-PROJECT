@@ -3,10 +3,10 @@ import { actorSchema, type Actor } from "../../contracts/common";
 import type { SessionVerifier } from "../../contracts/services";
 import { HttpError } from "./errors";
 
-export const MOCK_COOKIE = "microai_demo";
+export const MOCK_COOKIE = "knectan_demo";
 export const isMockMode = () => process.env.MOCK_MODE === "true";
 const maxAge = 6 * 60 * 60;
-const sign = (payload: string) => createHmac("sha256", process.env.MOCK_SESSION_SECRET || "microai-public-demo-only-v1").update(payload).digest("base64url");
+const sign = (payload: string) => createHmac("sha256", process.env.MOCK_SESSION_SECRET || "knectan-public-demo-only-v1").update(payload).digest("base64url");
 
 export async function resolveSession(request: Request, verifier?: SessionVerifier): Promise<{ actor: Actor; cookie?: string }> {
   if (!isMockMode()) {

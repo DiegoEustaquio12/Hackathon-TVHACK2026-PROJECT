@@ -111,3 +111,7 @@ python3 scripts/check-role2-local.py
 ```
 
 Las migraciones 001–007 ya están aplicadas en `microai-dev`; el dry-run quedó sin pendientes y la aceptación SQL remota pasó con rollback de fixtures. Se reproduce con `python3 scripts/check-role1-database.py --remote-ref hfcetxrktdorebepttof`. La URL pública, la configuración de credenciales del despliegue y el intercambio real de mensajes siguen sin verificarse.
+
+## Medios privados con Supabase Storage
+
+El MVP usará Supabase Storage para audios e imágenes; no requiere AWS S3. Revisar/aplicar migración 008 al entorno alojado antes de activar medios; actualmente está comprobada solo en local. Los buckets `business-audio` y `business-images` son privados, con registros en `business_media`. `WHATSAPP_AUDIO_ENABLED=false` por defecto; si se activa, el bootstrap compone lector Supabase y OpenAI y exige `OPENAI_API_KEY`. Mantener desactivado hasta que R2 conecte descarga/normalización real de Infobip. No cambiar los buckets a públicos. Ver [media-storage.md](media-storage.md).

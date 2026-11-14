@@ -2,6 +2,8 @@
 
 El adaptador real `createOpenAIAudioTranscriber` usa `POST https://api.openai.com/v1/audio/transcriptions`, multipart, modelo fijo `gpt-transcribe` e indicación `languages[]=es`. Usa fetch nativo de Node, sin añadir dependencias. Contrato oficial consultado: https://developers.openai.com/api/docs/guides/speech-to-text .
 
+**Almacenamiento acordado:** audios e imágenes en Supabase Storage privado. Lector implementado en `src/modules/media/supabase-storage.ts`; configuración, migración 008 y contrato de carga en [media-storage.md](media-storage.md). S3 se reserva para una posible migración futura.
+
 ## Recorrido y límites
 
 1. R2 autentica al remitente y guarda el audio en almacenamiento privado con pertenencia al negocio. No usar referencias aportadas en el texto ni URLs del usuario.
@@ -21,11 +23,17 @@ El adaptador permite OGG, MPEG/MP3, MP4/M4A, WAV, WebM y FLAC. Parámetros MIME 
 ```typescript
 import { createOpenAIAudioTranscriber } from '../src/modules/media/openai-transcriber';
 import { createRole2Service } from '../src/modules/orchestration/service';
+import { createSupabaseMediaStore, createSupabaseAudioReader } from '../src/modules/media/supabase-storage';
+
+const mediaStore = createSupabaseMediaStore({
+  client: serverConfig.client, url: process.env.SUPABASE_URL!,
+  serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+});
 
 const handler = createRole2Service({
   ...serverConfig,
   audio: {
-    reader: trustedPrivateStorageReader,
+    reader: createSupabaseAudioReader(mediaStore),
     transcriber: createOpenAIAudioTranscriber({
       apiKey: process.env.OPENAI_API_KEY ?? '',
     }),
@@ -33,15 +41,15 @@ const handler = createRole2Service({
 });
 ```
 
-Este ejemplo requiere el lector implementado/autorizado por R2. La clave se configura en el servidor, nunca con prefijo `NEXT_PUBLIC_`. No copiarla al chat ni a los logs. La ausencia de clave hace fallar la construcción del adaptador; no hay fallback mock.
+Este ejemplo usa el lector Supabase implementado por R1 y requiere la migración 008. R2 debe guardar el archivo mediante `mediaStore.save` antes de entregar la referencia interna. La clave se configura en el servidor, nunca con prefijo `NEXT_PUBLIC_`. No copiarla al chat ni a los logs. La ausencia de clave hace fallar la construcción del adaptador; no hay fallback mock.
 
-**Estado de conexión:** `createRole2Service` ya acepta e inyecta el pipeline de audio, pero el parser Infobip público todavía conserva los medios como `unsupported`; no transforma un `storageKey` externo en autoridad. Falta contrastar el payload real, implementar descarga/almacenamiento privado, conectar el lector y habilitarlo desde el bootstrap HTTP. Añadir `OPENAI_API_KEY` por sí solo no habilita audio en WhatsApp. La demo web mock permanece independiente. No se requiere una migración de dominio en esta entrega.
+**Estado de conexión:** `createRole2Service` ya acepta e inyecta el pipeline de audio, pero el parser Infobip público todavía conserva los medios como `unsupported`; no transforma un `storageKey` externo en autoridad. Falta contrastar el payload real y conectar la descarga Infobip a `mediaStore.save`. El almacenamiento privado y el lector ya están implementados; el bootstrap HTTP los conecta opcionalmente con `WHATSAPP_AUDIO_ENABLED=true` y `OPENAI_API_KEY`, después de aplicar 008 en el entorno elegido. Añadir `OPENAI_API_KEY` por sí solo no habilita audio en WhatsApp. La demo web mock permanece independiente. La entrega posterior de almacenamiento requiere la migración 008; ver `media-storage.md`.
 
 ## Evidencia
 
-- `npm run validate`: 80 pruebas aprobadas, integración local omitida por defecto.
+- `npm run validate`: 89 pruebas aprobadas, integración local omitida por defecto.
 - `npm run build`: aprobado.
-- `python3 scripts/check-role2-local.py`: aprobado con Supabase local real. Incluye audio preparado, borrador sin venta/descuento, replay sin retranscribir y confirmaciones posteriores sin duplicados. OpenAI, lectura de audio y HTTP saliente de Infobip están simulados en esa prueba.
+- `python3 scripts/check-role2-local.py`: aprobado con Supabase local real. Incluye audio preparado, borrador sin venta/descuento, replay sin retranscribir y confirmaciones posteriores sin duplicados. La prueba actual usa Storage/PostgreSQL/Auth locales reales; OpenAI y HTTP saliente de Infobip están simulados.
 - Pruebas específicas: multipart/modelo/idioma, límites, formatos, errores, identidad entregada al lector, aclaraciones, selección y rechazo de confirmaciones habladas.
 
 No se hizo llamada real a OpenAI: no hay `OPENAI_API_KEY` configurada en el entorno revisado. No se midió precisión, costo ni latencia con audios reales. Falta aceptación con grabaciones mexicanas, ruido, cantidades/marcas, silencio y formatos reales de Infobip; después, WhatsApp real.

@@ -26,3 +26,7 @@ El webhook real está en `POST /api/webhooks/infobip`; requiere habilitación y 
 La división, contratos de integración, propiedad de carpetas y secuencia de integración están en [`docs/parallel-work.md`](docs/parallel-work.md). Cada persona debe trabajar principalmente en sus carpetas asignadas y coordinar cambios a contratos antes de implementarlos.
 
 Ver [`docs/integration-contracts.md`](docs/integration-contracts.md) para distinguir contratos propuestos de funciones existentes, y [`docs/local-database.md`](docs/local-database.md) para la base local y comprobaciones.
+
+## Almacenamiento multimedia del MVP
+
+Audios e imágenes se guardarán en **Supabase Storage privado**, con referencias/metadatos en PostgreSQL. AWS S3 se deja como alternativa futura y no es requisito del MVP. La migración 008 y el adaptador de servidor están descritos en [docs/media-storage.md](docs/media-storage.md). Aplicada localmente; pendiente en el entorno alojado.

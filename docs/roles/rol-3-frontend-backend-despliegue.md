@@ -1,5 +1,8 @@
 # Rol 3 — Frontend, backend HTTP y despliegue
 
+**Decisión vigente de almacenamiento:** audios e imágenes en **Supabase Storage privado**; AWS S3 queda para una posible migración futura. R1 ya implementó carga/lectura y migración 008 (solo local); R2 conecta descarga/normalización real de Infobip; R3 configura el bootstrap y coordina publicación. Detalles y límites en [almacenamiento multimedia](../media-storage.md).
+
+
 ## Objetivo actual
 
 Entregar el transporte público de Infobip y los paneles de Knectan. WhatsApp es el canal principal del comerciante; la web sirve como apoyo. Leer [guía paralela](../parallel-work.md) y [contratos](../integration-contracts.md).

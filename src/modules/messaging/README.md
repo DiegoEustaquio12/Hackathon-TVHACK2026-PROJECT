@@ -35,3 +35,7 @@ Fuentes del adaptador: https://www.infobip.com/docs/developer-resources/api-fund
 ## Puerto de audio R1
 
 `createRole2Service` acepta `audio: {reader, transcriber}`. El transcriptor OpenAI con `gpt-transcribe` y la preparación por actor están implementados; ver `docs/audio-transcription.md`. El evento interno admite `kind: 'audio'` con referencia privada. El parser Infobip público conserva medios como `unsupported` hasta contrastar un evento real e implementar el lector/descarga segura; no confiar en un storageKey enviado externamente. Las confirmaciones habladas nunca ejecutan comandos.
+
+## Almacenamiento multimedia vigente
+
+Supabase Storage privado para audios e imágenes. R1 ya entrega carga/lectura por actor en `media/supabase-storage.ts` y migración 008 (local). R2 debe descargar desde Infobip con límites y guardar mediante `save`, entregando la referencia interna al pipeline. HTTP compone lector y transcriptor con `WHATSAPP_AUDIO_ENABLED=true`; parser de audio real aún pendiente. S3 no es dependencia. Ver `docs/media-storage.md`.

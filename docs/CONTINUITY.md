@@ -2,6 +2,10 @@
 
 Última actualización: 14 de noviembre de 2026. Este archivo resume decisiones del usuario y el estado comprobado para continuar en otro chat. Antes de actuar, revisar `git status`, commits recientes y archivos reales: otros integrantes pueden haber avanzado desde este resumen.
 
+## Decisión vigente — almacenamiento multimedia
+
+**Audios e imágenes se almacenarán en Supabase Storage privado.** No configurar AWS S3 para el MVP; queda como alternativa futura. Adaptador de carga/lectura implementado, metadatos en `business_media`, buckets `business-audio` y `business-images`. Migración **008 aplicada solo localmente; pendiente en remoto**. El bootstrap HTTP admite `WHATSAPP_AUDIO_ENABLED=true` para lector Supabase + OpenAI, pero el parser/descarga de audio real Infobip sigue pendiente. Ver `docs/media-storage.md`.
+
 ## Estado más reciente — migraciones alojadas comprobadas
 
 Las migraciones **001–007 ya están aplicadas en `microai-dev`** (`hfcetxrktdorebepttof`). El dry-run posterior no tiene pendientes. La comprobación SQL transaccional remota pasó y revirtió sus fixtures; hay 11 tablas con RLS y las funciones privilegiadas no son ejecutables por `anon`/`authenticated`. Ver el cierre al final de este documento. Las menciones anteriores a remoto pendiente describen el estado histórico. El despliegue HTTPS y WhatsApp real siguen pendientes.
@@ -232,3 +236,13 @@ El usuario prefiere español claro, acciones concretas y continuidad autónoma. 
 - No hubo llamada real a OpenAI: no hay clave configurada en el entorno revisado. `.env.example` añade solo `OPENAI_API_KEY=` vacío. No se verificó precisión/costo/latencia.
 - **R1 implementado, canal todavía no habilitado:** faltan lector privado de almacenamiento, descarga segura/normalización de audio real Infobip y composición HTTP por R2/R3. El parser público sigue devolviendo `unsupported` para medios. La demo web sigue mock. No hay migraciones nuevas ni despliegues en esta entrega.
 - Contrato, ejemplo de composición y límites: `docs/audio-transcription.md`. Imágenes, respaldo de IA y creación asistida de productos siguen pendientes.
+
+## Entrega R1 — Supabase Storage privado para audios e imágenes
+
+- Decisión explícita: Supabase PostgreSQL/Auth/Storage para el MVP; S3 se aplaza hasta que una necesidad de escala/costo justifique migrar.
+- Migración 008: dos buckets privados (10 MiB, MIME permitidos), `business_media` con FK/clave idempotente/hash, RLS y políticas restrictivas que impiden acceso directo de anon/authenticated a los buckets.
+- `createSupabaseMediaStore.save/read` implementados: verificación de remitente/negocio, referencia registrada, firma de contenedor, hash, tamaño, idempotencia, cargas concurrentes y lectura privada acotada sin redirecciones. Ante resultado de escritura incierto no se borra un objeto posiblemente confirmado; reconciliación/limpieza automática pendientes.
+- Composición HTTP con `WHATSAPP_AUDIO_ENABLED` (false por defecto), variables Supabase existentes y `OPENAI_API_KEY`. No activa normalización/descarga Infobip por sí sola; el parser público continúa rechazando medios como unsupported.
+- 008 aplicada únicamente localmente. No se desplegó remoto ni se contactó Infobip/OpenAI real. Imágenes pueden almacenarse; OCR sigue pendiente.
+- Validación: tipos, lint, 89 pruebas, build y prueba con Storage/PostgreSQL/Auth locales reales. Incluye audio/imagen, acceso público/anon/authenticated denegado, identidad, reintentos, cargas simultáneas y posterior venta confirmada. OpenAI y envío Infobip simulados. Se limpian usuario Auth, archivos y registros de prueba.
+- Guía fuente de la decisión y siguientes pasos: `docs/media-storage.md`; contratos actualizados para R1/R2/R3.

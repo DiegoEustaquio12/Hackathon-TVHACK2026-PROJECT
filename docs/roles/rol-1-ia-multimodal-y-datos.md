@@ -1,5 +1,8 @@
 # Rol 1 — IA multimodal, interpretación y datos
 
+**Decisión vigente de almacenamiento:** audios e imágenes en **Supabase Storage privado**; AWS S3 queda para una posible migración futura. R1 ya implementó carga/lectura y migración 008 (solo local); R2 conecta descarga/normalización real de Infobip; R3 configura el bootstrap y coordina publicación. Detalles y límites en [almacenamiento multimedia](../media-storage.md).
+
+
 ## Objetivo
 
 Interpretar texto, audio e imágenes con salida estructurada y persistir el dominio del negocio.

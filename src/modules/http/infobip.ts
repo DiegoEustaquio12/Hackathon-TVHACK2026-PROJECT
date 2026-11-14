@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { createRole2Service } from '../orchestration/service';
+import { createSupabaseMediaStore, createSupabaseAudioReader } from '../media/supabase-storage';
+import { createOpenAIAudioTranscriber } from '../media/openai-transcriber';
 
 type WebhookHandler = ReturnType<typeof createRole2Service>;
 let handler: WebhookHandler | undefined;
@@ -17,8 +19,13 @@ export function getInfobipHandler(): WebhookHandler {
     apiKey:process.env.INFOBIP_API_KEY,sender:process.env.INFOBIP_WHATSAPP_SENDER,
     webhookUsername:process.env.INFOBIP_WEBHOOK_USERNAME,webhookPassword:process.env.INFOBIP_WEBHOOK_PASSWORD,
     onboardingSecret:process.env.INFOBIP_ONBOARDING_SECRET});
-  handler = createRole2Service({ ...config,client:createClient(config.url,config.serviceKey,
-    {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}) });
+  const client=createClient(config.url,config.serviceKey,
+    {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+  const audio=process.env.WHATSAPP_AUDIO_ENABLED==='true' ? {
+    reader:createSupabaseAudioReader(createSupabaseMediaStore({client,url:config.url,serviceKey:config.serviceKey})),
+    transcriber:createOpenAIAudioTranscriber({apiKey:process.env.OPENAI_API_KEY??''}),
+  } : undefined;
+  handler = createRole2Service({ ...config,client,audio });
   return handler;
 }
 

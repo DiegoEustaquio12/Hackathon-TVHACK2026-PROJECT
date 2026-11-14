@@ -22,5 +22,6 @@ try:
 except (KeyError, ValueError, TypeError):
     sys.exit('A local Supabase URL and server key are required.')
 env = os.environ.copy()
-env.update(RUN_LOCAL_SUPABASE_TESTS='true', ROLE2_LOCAL_URL=url, ROLE2_LOCAL_SERVICE_KEY=key)
+env.update(RUN_LOCAL_SUPABASE_TESTS='true', ROLE2_LOCAL_URL=url, ROLE2_LOCAL_SERVICE_KEY=key,
+           ROLE2_LOCAL_ANON_KEY=config.get('ANON_KEY') or config.get('PUBLISHABLE_KEY', ''))
 sys.exit(subprocess.run([runner, 'run', 'tests/role2-local.integration.test.ts'], cwd=root, env=env).returncode)

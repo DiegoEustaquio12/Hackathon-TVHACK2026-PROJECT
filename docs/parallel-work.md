@@ -66,3 +66,7 @@ El hito B está comprobado contra Supabase local con proveedor saliente simulado
 - Stock obligatorio y no negativo; falta de stock rechaza la venta completa. No poner a cero unidades que todavía existen.
 - MXN en centavos enteros; cantidades hasta tres decimales; fechas ISO UTC. Ventas y utilidad son conceptos distintos.
 - Bedrock, audio, imágenes, distribuidores y publicidad siguen al recorrido de texto confirmado; no bloquean ese recorrido.
+
+## Acuerdo multimedia vigente
+
+Audios e imágenes: **Supabase Storage privado** para el MVP; S3 aplazado. R1 entrega `createSupabaseMediaStore` y migración 008 (aplicada solo localmente); R2 conecta descarga segura desde Infobip a `save`; R3 aplica configuración/flag de servidor y coordina despliegue de 008. No implementar almacenamiento AWS paralelo. Ver [media-storage.md](media-storage.md).

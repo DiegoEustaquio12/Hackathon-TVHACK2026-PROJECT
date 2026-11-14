@@ -1,5 +1,8 @@
 # Rol 2 — Orquestación de IA, autenticación y mensajería
 
+**Decisión vigente de almacenamiento:** audios e imágenes en **Supabase Storage privado**; AWS S3 queda para una posible migración futura. R1 ya implementó carga/lectura y migración 008 (solo local); R2 conecta descarga/normalización real de Infobip; R3 configura el bootstrap y coordina publicación. Detalles y límites en [almacenamiento multimedia](../media-storage.md).
+
+
 ## Objetivo
 
 Conectar canales e identidad con interpretación y operaciones del negocio. Para la demo de Knectan, priorizar **WhatsApp mediante Infobip** con un diseño que permita cambiar de proveedor sin reescribir la lógica del negocio.

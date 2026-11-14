@@ -57,3 +57,7 @@ python3 scripts/check-role1-database.py --remote-ref hfcetxrktdorebepttof
 El comprobador reutiliza cuatro pruebas SQL con números sintéticos nuevos y aborta ante una identidad existente. Cada bloque revierte sus fixtures y una subtransacción exterior revierte cualquier cambio residual. Las aserciones inesperadas fallan la sentencia completa. No envía WhatsApp ni cambia migraciones. La CLI requiere acceso al destino elegido; no imprimir ni compartir credenciales.
 
 Se comprobó en local y remoto. Es una prueba SQL secuencial, no una prueba del webhook desplegado, PostgREST remoto o concurrencia remota. `scripts/check-role2-local.py` sigue siendo exclusivamente local.
+
+## Medios privados — migración 008
+
+Supabase Storage almacenará audios e imágenes del MVP. 008 crea buckets privados y `business_media`; está aplicada y comprobada localmente, pendiente en microai-dev. La prueba local integrada ya usa Storage y Auth reales además de PostgreSQL; simula OpenAI y el envío Infobip. Ver [media-storage.md](media-storage.md). No insertar/borrar objetos directamente por SQL: usar la API de Storage.

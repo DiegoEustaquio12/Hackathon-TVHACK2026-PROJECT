@@ -10,9 +10,10 @@ import { createAudioPreparation } from '../src/modules/interpretation/audio';
 import { createOpenAIAudioTranscriber } from '../src/modules/media/openai-transcriber';
 import { createDurableProcessing } from '../src/modules/messaging/processing';
 import { createSupabaseProcessingStore } from '../src/modules/messaging/supabase-processing';
+import { createSupabaseMediaStore, createSupabaseAudioReader } from '../src/modules/media/supabase-storage';
 import type { InboundMessage } from '../src/modules/messaging/contracts';
 
-// Opt-in only. Uses real local PostgreSQL/PostgREST and mocks ONLY Infobip HTTP.
+// Opt-in only. Real local DB/Storage/Auth; OpenAI and outgoing Infobip HTTP are simulated.
 it.skipIf(process.env.RUN_LOCAL_SUPABASE_TESTS !== 'true')('persists the real webhook flow, replays, repricing and expense cancellation',async()=>{
   const url=process.env.ROLE2_LOCAL_URL!;
   if(!['localhost','127.0.0.1'].includes(new URL(url).hostname)) throw new Error('Local database required');
@@ -20,6 +21,8 @@ it.skipIf(process.env.RUN_LOCAL_SUPABASE_TESTS !== 'true')('persists the real we
   const sender=`1999${Math.floor(Math.random()*9000000+1000000)}`;
   const recipient='19999999999'; const prefix=`local-${randomUUID()}`;
   let businessId:string|undefined;
+  let storageTestUserId:string|undefined;
+  const storedObjects:{bucket:string;key:string}[]=[];
   const replies:string[]=[]; const originalFetch=globalThis.fetch;
   vi.stubGlobal('fetch',async(input:string|URL|Request,init?:RequestInit)=>{
     const target=typeof input==='string'?input:input instanceof URL?input.href:input.url;
@@ -70,13 +73,52 @@ it.skipIf(process.env.RUN_LOCAL_SUPABASE_TESTS !== 'true')('persists the real we
     expect(sales.data).toHaveLength(2);
     const stock=await client.from('products').select('stock').eq('id',product.id).single();
     expect(Number(stock.data?.stock)).toBe(6);
-    // Real DB and draft confirmation; OpenAI/storage are fixtures, not real audio accuracy tests.
+    // Real private Supabase Storage + DB; OpenAI is a fixture, not an accuracy test.
+    const mediaStore=createSupabaseMediaStore({client,url,serviceKey:process.env.ROLE2_LOCAL_SERVICE_KEY!});
+    const audioActor={businessId,verifiedSender:sender};
+    const voiceBytes=new Uint8Array([79,103,103,83,1,2,3,4]); // Container signature fixture, not playable audio.
+    const storedAudio=await mediaStore.save(audioActor,{kind:'audio',operationKey:`${prefix}-voice`,mimeType:'audio/ogg',bytes:voiceBytes});
+    storedObjects.push({bucket:'business-audio',key:storedAudio.storageKey});
+    expect(await mediaStore.save(audioActor,{kind:'audio',operationKey:`${prefix}-voice`,mimeType:'audio/ogg',bytes:voiceBytes})).toEqual(storedAudio);
+    await expect(mediaStore.save(audioActor,{kind:'audio',operationKey:`${prefix}-voice`,mimeType:'audio/ogg',
+      bytes:new Uint8Array([79,103,103,83,9])})).rejects.toThrow('MEDIA_IDEMPOTENCY_CONFLICT');
+    expect((await mediaStore.read(audioActor,storedAudio,1024)).bytes).toEqual(Buffer.from(voiceBytes));
+    await expect(mediaStore.read({...audioActor,businessId:randomUUID()},storedAudio,1024)).rejects.toThrow('MEDIA_ACCESS_DENIED');
+    const racingInput={kind:'audio' as const,operationKey:`${prefix}-concurrent-media`,mimeType:'audio/ogg',bytes:voiceBytes};
+    const concurrentMedia=await Promise.all([mediaStore.save(audioActor,racingInput),mediaStore.save(audioActor,racingInput)]);
+    expect(concurrentMedia[0]).toEqual(concurrentMedia[1]);
+    storedObjects.push({bucket:'business-audio',key:concurrentMedia[0].storageKey});
+    expect((await client.from('business_media').select('id').eq('business_id',businessId)
+      .eq('operation_key',racingInput.operationKey)).data).toHaveLength(1);
+    const imageBytes=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=','base64');
+    const storedImage=await mediaStore.save(audioActor,{kind:'image',operationKey:`${prefix}-image`,mimeType:'image/png',bytes:imageBytes});
+    storedObjects.push({bucket:'business-images',key:storedImage.storageKey});
+    expect((await mediaStore.read(audioActor,storedImage,1024)).bytes).toEqual(imageBytes);
+    for(const object of storedObjects) {
+      const publicAttempt=await originalFetch(`${url}/storage/v1/object/public/${object.bucket}/${object.key}`);
+      expect(publicAttempt.ok).toBe(false);
+    }
+    const anonKey=process.env.ROLE2_LOCAL_ANON_KEY!;
+    const anonymous=createClient(url,anonKey,{auth:{persistSession:false,autoRefreshToken:false}});
+    expect((await anonymous.from('business_media').select('*')).error).not.toBeNull();
+    expect((await anonymous.storage.from('business-audio').download(storedAudio.storageKey)).error).not.toBeNull();
+    expect((await anonymous.storage.from('business-audio').upload(`${businessId}/audio/${randomUUID()}`,voiceBytes,{contentType:'audio/ogg'})).error).not.toBeNull();
+    const email=`media-${randomUUID()}@fixture.invalid`;const authPassword=randomUUID()+'aA!9';
+    const user=await client.auth.admin.createUser({email,password:authPassword,email_confirm:true,app_metadata:{business_id:businessId}});
+    expect(user.error).toBeNull();storageTestUserId=user.data.user?.id;
+    const signedIn=await anonymous.auth.signInWithPassword({email,password:authPassword});
+    expect(signedIn.error).toBeNull();
+    expect((await anonymous.from('business_media').select('*')).error).not.toBeNull();
+    expect((await anonymous.storage.from('business-audio').download(storedAudio.storageKey)).error).not.toBeNull();
+    expect((await anonymous.storage.from('business-images').download(storedImage.storageKey)).error).not.toBeNull();
+    expect((await anonymous.storage.from('business-images').upload(`${businessId}/image/${randomUUID()}`,imageBytes,{contentType:'image/png'})).error).not.toBeNull();
+
     const transcribeHttp=vi.fn<typeof fetch>(async()=>Response.json({text:'Vendí una coca'}));
     const audioConversation=createConversation({...createConversationRepositories(client),
-      prepareAudio:createAudioPreparation({reader:{read:async()=>({bytes:new Uint8Array([79,103,103,83]),mimeType:'audio/ogg'})},
+      prepareAudio:createAudioPreparation({reader:createSupabaseAudioReader(mediaStore),
         transcriber:createOpenAIAudioTranscriber({apiKey:'fixture'},transcribeHttp)})});
     const audioMessage:InboundMessage={provider:'infobip',providerMessageId:`${prefix}-audio`,from:sender,to:recipient,
-      receivedAt:new Date().toISOString(),kind:'audio',audio:{storageKey:`${businessId}/fixture.ogg`,mimeType:'audio/ogg'}};
+      receivedAt:new Date().toISOString(),kind:'audio',audio:storedAudio};
     const durable=createDurableProcessing(createSupabaseProcessingStore(client));
     const audioSummary=await durable.run(audioMessage,()=>audioConversation(audioMessage));
     expect(audioSummary).toContain('Transcripción: «Vendí una coca»');
@@ -97,9 +139,19 @@ it.skipIf(process.env.RUN_LOCAL_SUPABASE_TESTS !== 'true')('persists the real we
     expect(expenses.data).toHaveLength(0);
   } finally {
     vi.unstubAllGlobals();
+    if(storageTestUserId) {
+      const deleted=await client.auth.admin.deleteUser(storageTestUserId);
+      if(deleted.error) throw deleted.error;
+    }
     // Explicit order respects the private draft foreign keys. No real user data.
     await client.from('r2_events').delete().like('event_key',`infobip:${prefix}%`);
+    for(const object of storedObjects) {
+      const removed=await client.storage.from(object.bucket).remove([object.key]);
+      if(removed.error) throw removed.error;
+    }
     if(businessId) {
+      const mediaRemoved=await client.from('business_media').delete().eq('business_id',businessId);
+      if(mediaRemoved.error) throw mediaRemoved.error;
       for(const table of ['r2_expense_drafts','whatsapp_sale_drafts','sale_items','sales','products','expenses']) {
         const result=await client.from(table).delete().eq('business_id',businessId);
         if(result.error) throw result.error;

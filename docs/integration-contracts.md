@@ -87,3 +87,7 @@ R3 usa handler mock local mientras llega el real. Una ruta pública mock no debe
 - Borradores no reservan stock. La migración 004 guarda el resumen de precios con versión y detecta cambios atómicamente al confirmar. R2 debe mostrar `previous_quote` y `quote` claramente y generar otra confirmación ligada al nuevo `quote_version`. `price_changed` y `quote_outdated` no son ventas confirmadas. `formatPriceChangeNotice` ofrece el texto de cambio. Un botón antiguo no acepta la nueva versión.
 - Alta explícita ya conectada a R2 con nombre/giro y remitente verificado. El seed no crea usuario ni WhatsApp real. Negocios existentes sin giro deben completar alta antes de operar.
 - La zona horaria ahora se configura mediante repositorio y queda pendiente de preguntar a cada negocio antes del primer reporte; no hay una zona predeterminada silenciosa.
+
+## Almacenamiento multimedia acordado
+
+Supabase Storage privado es el proveedor del MVP para audios e imágenes; S3 queda como alternativa futura. R2 descarga de Infobip de forma autenticada/acotada y llama `createSupabaseMediaStore.save` con actor verificado y clave por evento. El adaptador genera la referencia registrada, nunca el navegador ni el payload externo. R1 consume esa referencia mediante el lector Supabase; R3 compone servidor con `WHATSAPP_AUDIO_ENABLED` y `OPENAI_API_KEY` después de aplicar 008. Ver [media-storage.md](media-storage.md). El parser Infobip actual todavía no normaliza medios reales.

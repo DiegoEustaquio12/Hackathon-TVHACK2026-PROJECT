@@ -5,6 +5,17 @@ import { createSupabaseMediaStore, createSupabaseAudioReader } from '../media/su
 import { createInfobipMediaIngestor } from '../messaging/infobip-media';
 import { createOpenAIReceiptExtractor } from '../media/openai-receipts';
 import { createOpenAIAudioTranscriber } from '../media/openai-transcriber';
+import { errorResponse, HttpError } from './errors';
+
+const webhookErrorMessages: Record<string, string> = {
+  PAYLOAD_TOO_LARGE: 'La solicitud supera el límite de 256 KB.',
+  UNAUTHORIZED: 'Las credenciales del webhook no son válidas.',
+  JSON_REQUIRED: 'Envía la solicitud como JSON.',
+  INVALID_PAYLOAD: 'El evento del proveedor no es válido.',
+  INVALID_DOMAIN_INPUT: 'Los datos del evento no son válidos.',
+  PROCESSING_UNAVAILABLE: 'No pudimos procesar el evento. Intenta de nuevo.',
+  WEBHOOK_UNAVAILABLE: 'El webhook no está disponible.',
+};
 
 type WebhookHandler = ReturnType<typeof createRole2Service>;
 let handler: WebhookHandler | undefined;
@@ -40,7 +51,13 @@ export function getInfobipHandler(): WebhookHandler {
 /** Accepts external provider traffic; it intentionally does not require web cookies. */
 export function createInfobipRoute(factory: () => WebhookHandler = getInfobipHandler) {
   return async (request: Request): Promise<Response> => {
-    const json = (body: object,status:number) => Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
+    const json = (body: { code?: string; accepted?: number },status:number) => {
+      if (status >= 400) {
+        const code = body.code ?? 'WEBHOOK_UNAVAILABLE';
+        return errorResponse(new HttpError(status, code, webhookErrorMessages[code] ?? 'No pudimos procesar el evento.'));
+      }
+      return Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
+    };
     try {
       const limit = 256*1024;
       const size = request.headers.get('content-length');

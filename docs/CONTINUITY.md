@@ -281,3 +281,10 @@ El usuario prefiere español claro, acciones concretas y continuidad autónoma. 
 - 137 pruebas aprobadas, dos integraciones opt-in omitidas por defecto; build aprobado. Integración local con DB/Storage/Auth reales aprobada: ticket a venta/gasto, duplicados, precio cambiado/confirmación obsoleta, cancelación y dos clasificaciones concurrentes. HTTP externos simulados. Fixtures limpiados.
 - Nuevo check-role1-openai.py y test opt-in usan adaptadores reales con un manifiesto local de archivos y expectativas revisadas. Requieren clave en entorno y --allow-upload; no escriben dominio ni envían WhatsApp. Se verificó la negativa a subir sin autorización; no se ejecutó OpenAI real porque la clave sigue ausente. Ver docs/openai-acceptance.md.
 - Descarga/retención/worker y aceptación externa siguen según cierre anterior. Trabajo R1 posterior: editor de correcciones, compras con inventario si se confirma alcance, creación asistida de productos y respaldo IA para texto.
+
+## Integración de configuración HTTP antes de publicar R1
+
+- Integrado sin conflictos el commit remoto `0e18fd6` (endpoint `/api/health`, errores HTTP/configuración de despliegue) con R1 `9f71964` (tickets persistentes a propuestas). No se descartó trabajo del equipo ni se hizo force push.
+- Verificaciones posteriores: tipos/lint y 148 pruebas aprobadas, dos integraciones opt-in omitidas; build aprobado y 12 E2E aprobadas en escritorio/móvil con demo mock.
+- El endpoint de salud responde por la app; no demuestra conectividad real de Infobip/OpenAI ni una venta WhatsApp. No hubo despliegue en este cierre.
+- Configuración local de este repositorio: `pull.rebase=false` para futuros pulls mediante merge; no se cambió configuración global. Confirmar publicación mediante `git status` y el historial remoto.

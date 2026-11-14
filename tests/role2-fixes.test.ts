@@ -63,8 +63,16 @@ it('streams the webhook body with a hard limit and preserves auth headers/raw da
   expect(response.status).toBe(200);expect(handler.mock.calls[0]?.[0]).toMatchObject({rawBody:'{"results":[]}'});
   const oversized=await post(new Request('https://example.test',{method:'POST',body:'x'.repeat(256*1024+1)}));
   expect(oversized.status).toBe(413);expect(handler).toHaveBeenCalledOnce();
+  expect(await oversized.json()).toEqual({code:'PAYLOAD_TOO_LARGE',message:'La solicitud supera el límite de 256 KB.'});
 });
 it('fails closed when real webhook configuration is absent',async()=>{
   const response=await createInfobipRoute(()=>{throw new Error('secret configuration');})(new Request('https://example.test',{method:'POST',body:'{}'}));
-  expect(response.status).toBe(503);expect(await response.text()).not.toContain('secret');
+  expect(response.status).toBe(503);
+  expect(await response.json()).toEqual({code:'WEBHOOK_UNAVAILABLE',message:'El webhook no está disponible.'});
+});
+it('normalizes provider processing errors at the HTTP boundary',async()=>{
+  const post=createInfobipRoute(()=>async()=>({status:401,body:{code:'UNAUTHORIZED'}}));
+  const response=await post(new Request('https://example.test/api/webhooks/infobip',{method:'POST',body:'{}'}));
+  expect(response.status).toBe(401);
+  expect(await response.json()).toEqual({code:'UNAUTHORIZED',message:'Las credenciales del webhook no son válidas.'});
 });

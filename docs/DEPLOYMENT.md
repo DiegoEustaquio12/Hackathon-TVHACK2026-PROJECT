@@ -57,6 +57,20 @@ La CI en `.github/workflows/ci.yml` instala con `npm ci`, valida tipos/lint/cont
 
 La evidencia de esta entrega y las limitaciones del gate visual están en [QA-KNECTAN.md](QA-KNECTAN.md).
 
+### Verificación HTTP y despliegue — 14 de noviembre de 2026
+
+Validado en Windows con Node.js 24.18.0 y Next.js 15.5.29. Se usaron `npm.cmd` y `npx.cmd` por la política de PowerShell:
+
+| Comprobación | Resultado |
+| --- | --- |
+| `npx tsc --noEmit` | Código 0 |
+| `npm run lint` | Código 0, sin advertencias |
+| `npm test` | Código 0; 129 pruebas correctas y 1 integración local de Supabase omitida por ser opt-in |
+| `npm run build` con `MOCK_MODE=true` | Código 0; todas las rutas generadas, sin errores de compilación, tipos ni lint |
+| `npm run test:e2e` contra el build | Código 0; 12 recorridos correctos en Chrome, escritorio y móvil |
+
+Los recorridos comprueban health público incluso con cookie inválida, navegación desde `/`, logo HTTP 200, ausencia de errores del navegador y recursos HTTP fallidos, chat multimodal, filtros/estados/alta/baja de pedidos, recarga, planes, errores recuperables y accesibilidad automatizada. Playwright requirió acceso fuera del aislamiento de ejecución para conectar Chrome con el servidor localhost. Esta comprobación usa producción local; no se ha creado un despliegue remoto en Vercel. Las limitaciones de persistencia de la demo descritas abajo siguen aplicando.
+
 ## 4. Desplegar en Vercel
 
 1. Subir los cambios y `package-lock.json` al repositorio remoto que se quiera desplegar.
@@ -64,7 +78,7 @@ La evidencia de esta entrega y las limitaciones del gate visual están en [QA-KN
 3. Usar el preset **Next.js** y como Root Directory la raíz del repositorio, no `frontend/` ni `backend/`. Vercel soporta Next.js de forma nativa ([guía oficial](https://vercel.com/docs/frameworks/full-stack/nextjs)).
 4. Elegir Node.js **22.x** en la configuración del proyecto. Mantener Install Command `npm ci` y Build Command `npm run build`; dejar el directorio de salida en su valor predeterminado para Next.js ([configuración de build](https://vercel.com/docs/builds/configure-a-build)).
 5. En Environment Variables añadir `MOCK_MODE=true` para Preview y Production. Recomendado: añadir `MOCK_SESSION_SECRET` con una clave aleatoria distinta a otros proyectos. No hacen falta variables de AWS, Meta o Supabase. Las variables se aplican al siguiente despliegue ([documentación de variables](https://vercel.com/docs/environment-variables)).
-6. Pulsar **Deploy**. En la URL HTTPS resultante, comprobar `/chat`, `/distribuidores`, `/publicidad` y `/logo/Knectan_logo.svg`. Probar los tres tipos de mensaje, filtros, alta/baja de pedidos, recarga y activación mock de un plan.
+6. Pulsar **Deploy**. En la URL HTTPS resultante, comprobar `/api/health`, `/chat`, `/distribuidores`, `/publicidad` y `/logo/Knectan_logo.svg`. El healthcheck debe responder HTTP 200 con `status: "ok"`, `service: "knectan-web"` y `mockMode: true`, sin iniciar sesión. Probar los tres tipos de mensaje, filtros, alta/baja de pedidos, recarga y activación mock de un plan.
 7. Para cambios posteriores de variables, crear un nuevo deployment. Si se cambia la clave, borrar las cookies `knectan_demo` y `knectan_demo_orders` del navegador y volver a cargar.
 
 ### Persistencia de la demo
@@ -81,6 +95,7 @@ Los esquemas y tipos se exportan desde `src/contracts/index.ts`; los puertos de 
 
 | Método y ruta | Entrada | Salida |
 | --- | --- | --- |
+| `GET /api/health` | Público, sin sesión ni query | `{ status: "ok", service: "knectan-web", mockMode, timestamp, endpoints }` |
 | `GET /api/chat/messages` | Sin query | `conversationId`, `messages` |
 | `POST /api/chat/messages` | JSON con `clientMessageId` UUID y `kind: text / image / audio` | Dos mensajes validados; HTTP 201 |
 | `GET /api/distributor/dashboard` | Query opcional `status`, `q` | KPIs globales y pedidos filtrados |
@@ -88,6 +103,10 @@ Los esquemas y tipos se exportan desde `src/contracts/index.ts`; los puertos de 
 | `POST /api/distributor/orders` | JSON `{ customer, channel, items_count, total_cents }` | Pedido pendiente; HTTP 201 |
 | `DELETE /api/distributor/orders/[orderId]` | JSON `{ expected_version }` | `{ orderId, deleted_at }`; HTTP 200 |
 | `POST /api/distributor/plans` | JSON `{ planId }` | Activación simulada, `monthly_price_cents` del servidor y fecha UTC; HTTP 201 |
+
+`GET /api/health` comprueba que el proceso HTTP responde; no verifica disponibilidad de servicios externos ni autentica usuarios. `endpoints` lista rutas únicas (con `[orderId]` para parámetros) y añade el webhook solo si `INFOBIP_WEBHOOK_ENABLED=true`. La respuesta no se almacena en caché ni crea cookies; sigue disponible con mocks desactivados o una cookie de demo inválida. No devuelve secretos ni valores de configuración de proveedores.
+
+No hay un `next.config.*` que desactive validaciones o convierta advertencias en errores. El build usa los valores predeterminados de Next.js: mantiene las comprobaciones de TypeScript y ESLint. `npm run lint` aplica además `--max-warnings=0` como comprobación separada de calidad.
 
 Texto requiere `text`; imagen requiere `name`, `alt`, `data_url`; audio requiere `name`, `data_url`. Los archivos usan data URLs base64 para permitir el flujo local sin almacenamiento externo. No se aceptan URLs remotas. El límite del archivo decodificado es 2 MB y el del request completo es 3 MB. Los campos desconocidos, `businessId` en body/query y parámetros repetidos se rechazan con 400. Todos los errores públicos tienen exclusivamente `{ code, message }`; no incluyen stack ni detalles internos. Los montos son enteros seguros `*_cents` en MXN y las fechas UTC con milisegundos.
 

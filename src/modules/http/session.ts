@@ -11,8 +11,9 @@ const sign = (payload: string) => createHmac("sha256", process.env.MOCK_SESSION_
 export async function resolveSession(request: Request, verifier?: SessionVerifier): Promise<{ actor: Actor; cookie?: string }> {
   if (!isMockMode()) {
     const actor = await verifier?.verify(request);
-    if (!actor) throw new HttpError(401, "UNAUTHORIZED", "Inicia sesión para continuar.");
-    return { actor: actorSchema.parse(actor) };
+    const verified = actorSchema.safeParse(actor);
+    if (!verified.success) throw new HttpError(401, "UNAUTHORIZED", "Inicia sesión para continuar.");
+    return { actor: verified.data };
   }
   const token = request.headers.get("cookie")?.split(";").map(v => v.trim()).find(v => v.startsWith(`${MOCK_COOKIE}=`))?.slice(MOCK_COOKIE.length + 1);
   if (token !== undefined) {

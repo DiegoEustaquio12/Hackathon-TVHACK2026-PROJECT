@@ -2,6 +2,10 @@ import type { Actor } from "./common";
 import type { ChatHistory, ChatInput, SendMessageResponse } from "./chat";
 import type { CreateOrderInput, Dashboard, DashboardQuery, DeleteOrderInput, DeleteOrderResponse, Order, UpdateOrderInput } from "./distributor";
 import type { ActivatePlanInput, PlanActivation } from "./plans";
+import type { Health } from "./health";
+
+/** Public server diagnostics; independent of user sessions and provider credentials. */
+export interface HealthService { check(): Promise<Health> }
 
 /** R2 provides a verified identity; HTTP never derives tenancy from client input. */
 export interface SessionVerifier { verify(request: Request): Promise<Actor | null> }

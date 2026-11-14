@@ -1,5 +1,27 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { healthSchema } from "../../src/contracts/health";
+
+test("production health, navigation and static assets respond without browser errors", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  page.on("response", response => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
+  const response = await page.request.get("/api/health", { headers: { cookie: "knectan_demo=invalid" } });
+  expect(response.status()).toBe(200);
+  expect(response.headers()["set-cookie"]).toBeUndefined();
+  expect(healthSchema.parse(await response.json())).toMatchObject({ status: "ok", service: "knectan-web", mockMode: true });
+  expect((await page.request.get("/logo/Knectan_logo.svg")).status()).toBe(200);
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/chat$/);
+  await expect(page.getByRole("button", { name: "Enviar mensaje" })).toBeEnabled();
+  await page.getByRole("link", { name: "Distribuidores", exact: true }).click();
+  await expect(page.getByRole("row").filter({ hasText: "PED-1042" })).toBeVisible();
+  await page.getByRole("link", { name: "Publicidad", exact: true }).click();
+  await expect(page.getByRole("article")).toHaveCount(3);
+  await page.getByRole("link", { name: "Asistente", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Enviar mensaje" })).toBeEnabled();
+  expect(errors).toEqual([]);
+});
 
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1V0AAAAASUVORK5CYII=", "base64");
 // Short silent PCM WAV, generated locally; no external media dependency.

@@ -40,14 +40,24 @@ export async function readJson(request: Request): Promise<unknown> {
   try { return JSON.parse(Buffer.concat(chunks).toString("utf8")); }
   catch { throw new HttpError(400, "INVALID_JSON", "La solicitud debe contener JSON válido."); }
 }
+function validatedResponse<T>(schema: z.ZodType<T>, value: unknown, status: number) {
+  const result = schema.safeParse(value);
+  if (!result.success) throw new HttpError(500, "INVALID_RESPONSE", "El servicio devolvió una respuesta no válida.");
+  return Response.json(result.data, { status, headers: { "Cache-Control": "no-store" } });
+}
+
+/** Explicit public entry point: no session resolution, cookies or domain services. */
+export async function handlePublic<T>(schema: z.ZodType<T>, action: () => Promise<T>, status = 200) {
+  try { return validatedResponse(schema, await action(), status); }
+  catch (error) { return errorResponse(error); }
+}
+
 export async function handle<T>(request: Request, schema: z.ZodType<T>, action: (actor: Actor, services: HttpServices) => Promise<T>, status = 200) {
   let cookie: string | undefined;
   try {
     const session = await resolveSession(request, getSessionVerifier()); cookie = session.cookie;
     const prepareCookie = prepareResponseCookie(request, session.actor);
-    const result = schema.safeParse(await action(session.actor, getServices()));
-    if (!result.success) throw new HttpError(500, "INVALID_RESPONSE", "El servicio devolvió una respuesta no válida.");
-    const response = Response.json(result.data, { status, headers: { "Cache-Control": "no-store" } });
+    const response = validatedResponse(schema, await action(session.actor, getServices()), status);
     if (cookie) response.headers.append("Set-Cookie", cookie);
     if (prepareCookie) response.headers.append("Set-Cookie", prepareCookie());
     return response;

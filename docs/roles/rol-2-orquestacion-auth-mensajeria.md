@@ -16,6 +16,10 @@ R1 ya entrega repositorios de eventos y borradores. R2 controla procesamiento/re
 
 Confirmar siempre la venta tras mostrar resumen; ligar cada confirmación al borrador y remitente. Varias confirmaciones del mismo borrador no deben crear nuevas ventas.
 
+**Contrato R1 actualizado:** usar `interpretForWhatsApp`/`findBusinessByWhatsApp` de `src/modules/data/businesses.ts`. Si no existe el negocio o no completó el alta, preguntar **nombre y giro** y llamar `completeBusinessOnboarding` únicamente después de recopilar ambos desde el remitente verificado. El giro se guarda para futuros modelos; no inferirlo automáticamente ni crear productos inventados.
+
+`createSaleDraft` devuelve `quote` y `quote_version`: mostrar ese resumen. `confirmSaleDraft` ahora requiere `quoteVersion` y devuelve `status`: solo `confirmed` contiene `receipt` y significa venta guardada. Para `price_changed`, mostrar anterior/nuevo con `formatPriceChangeNotice`, enviar otro resumen/botón y ligar la aprobación a la nueva versión. Para `quote_outdated`, volver a mostrar el resumen vigente. No usar la versión más reciente para interpretar un botón antiguo; registrar qué versión presentó cada mensaje/botón.
+
 ## Responsabilidades
 
 - Implementar el flujo conversacional que invoca los servicios del rol 1.

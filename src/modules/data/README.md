@@ -4,6 +4,39 @@ El número de WhatsApp es la identidad principal del negocio. `businesses.whatsa
 
 ## Invocación desde servidor
 
+**Actualización de contrato (migración 004):** para el POS conversacional usar `businesses.ts` y `conversations.ts`. `recordWhatsAppSale` es un helper de bajo nivel y no detecta cambios respecto a un resumen: no invocarlo directamente desde mensajes/botones de confirmación.
+
+### Alta explícita e interpretación
+
+1. Autenticar y normalizar el remitente (R2). `findBusinessByWhatsApp(client, verifiedSender)` devuelve negocio o `null`.
+2. Si falta negocio, `business_type` o `onboarding_completed_at`, preguntar nombre y giro de negocio. `completeBusinessOnboarding(client, { verifiedSender, name, businessType })` guarda el alta explícita; repetir los mismos datos es idempotente, intentar sobreescribir un alta completa devuelve `ONBOARDING_CONFLICT`. Nombre y giro deben tener entre 1 y 160 caracteres.
+3. `getBusinessCatalogue(client, verifiedSender)` consulta únicamente el negocio resuelto por ese número. `interpretForWhatsApp(client, verifiedSender, request)` devuelve `{ business, interpretation }`; el giro queda disponible en `business.business_type` para modelos futuros. Todavía no se crean productos con IA.
+4. El parser puro `interpretSaleMessage(request, catalogue)` reconoce cantidades numéricas y productos en frases como “Vendí 3 cocas y 2 panes”. Admite decimales y precios explícitos solo si coinciden con catálogo. Devuelve artículos o pregunta de aclaración, nunca una venta persistida. La resolución de plurales es conservadora; no es un modelo de lenguaje ni interpreta medios todavía.
+
+### Resumen versionado y cambio de precio
+
+`createSaleDraft` devuelve `quote` (artículos, precio, subtotales y total) y `quote_version`. El mensaje/botón de confirmación debe guardar ambas referencias: borrador y versión presentada. Usar el resumen del RPC para mostrar precios; no fabricar un resumen con valores independientes del navegador/modelo.
+
+```ts
+const result = await confirmSaleDraft(serverClient, {
+  verifiedSender, draftId, quoteVersion: versionPresentedToTheUser,
+});
+if (result.status === 'confirmed') {
+  // result.receipt: venta guardada, incluso si es replay.
+} else if (result.status === 'price_changed') {
+  // formatPriceChangeNotice(result) muestra anterior/nuevo y pide otra aprobación.
+  // Guardar result.quote_version en el NUEVO mensaje/botón.
+} else {
+  // quote_outdated: se usó un botón antiguo; mostrar result.quote sin vender.
+}
+```
+
+No tomar automáticamente la versión más reciente para procesar una confirmación antigua. Solo `confirmed` representa una venta. `price_changed` persiste la nueva cotización sin descontar stock y requiere otra confirmación. La fecha de vencimiento original permanece. Borradores anteriores sin cotización requieren obtener/mostrar un resumen nuevo antes de aprobar.
+
+Los nuevos errores son `ONBOARDING_REQUIRED`, `INVALID_ONBOARDING`, `ONBOARDING_CONFLICT` y `QUOTE_VERSION_REQUIRED`. Números desconocidos no se registran al vender y negocios existentes sin giro deben completar el alta.
+
+### Helper de bajo nivel
+
 Usar `recordWhatsAppSale` de `whatsapp-sales.ts` con un cliente Supabase privilegiado del servidor:
 
 ```ts
@@ -29,8 +62,8 @@ Las funciones de `conversations.ts` usan el mismo cliente privilegiado de servid
 
 1. `registerInboundEvent({ provider: 'infobip', providerMessageId, verifiedSender, recipient })` persiste el evento con unicidad por proveedor e ID. Devuelve `event_id`, `is_new`, `status`. El ID se toma del mensaje entrante normalizado, no de un reporte de entrega.
 2. Interpretar el contenido y resolver los productos. `createSaleDraft({ verifiedSender, operationKey: 'infobip:' + providerMessageId, items })` crea el borrador con duración inicial de 15 minutos. No descuenta stock. Reintentos con la misma clave conservan el borrador; cambios al carrito requieren una nueva operación y cancelar el borrador anterior.
-3. Mostrar el resumen y asociar los botones/respuestas al `draft_id` y al remitente. No inferir una confirmación de un “sí” sin contexto inequívoco.
-4. `confirmSaleDraft({ verifiedSender, draftId })` confirma atómicamente con clave interna `draft:<uuid>`. Mensajes de confirmación diferentes para el mismo borrador devuelven la misma venta. Si está pendiente y venció, falla; si ya se confirmó, devuelve el recibo incluso después del vencimiento.
+3. Mostrar `quote` y asociar botones/respuestas al `draft_id`, `quote_version` y remitente. No inferir una confirmación de un “sí” sin contexto inequívoco.
+4. `confirmSaleDraft({ verifiedSender, draftId, quoteVersion })` confirma atómicamente con clave interna `draft:<uuid>`. Devuelve `status` y, solo si es `confirmed`, un `receipt`. Mensajes diferentes confirmando el mismo borrador no duplican la venta. Si está pendiente y venció, falla; si ya se confirmó, devuelve el recibo incluso después del vencimiento.
 5. `cancelSaleDraft({ verifiedSender, draftId })` cancela un borrador no confirmado. No permite revertir una venta confirmada.
 
 Persistir recepción no equivale a procesar un evento: el rol 2 debe gestionar `status` (`received`, `processing`, `processed`, `failed`) y recuperación de pendientes con su worker/adaptador de cola. No ignorar `is_new=false` salvo que el evento ya esté procesado. Esta tabla registra metadatos; no es una cola ni guarda contenido suficiente para recuperar mensajes sin una fuente durable adicional. Marcar `processed` solo tras completar el efecto correspondiente; una respuesta fallida no debe crear otra venta. El RPC de confirmación garantiza la idempotencia del efecto de venta, aunque dos workers reintenten.

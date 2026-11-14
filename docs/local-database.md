@@ -25,6 +25,9 @@ Comprobar comportamiento en local sin conservar fixtures:
 ```bash
 npx supabase db query --file supabase/checks/whatsapp-sales.sql
 npx supabase db query --file supabase/checks/whatsapp-conversations.sql
+npx supabase db query --file supabase/checks/onboarding-and-prices.sql
 ```
 
 La migración `202611140003_provider_independent_whatsapp.sql` mantiene las reglas de venta y cambia el origen predeterminado a `whatsapp`. Agrega eventos de proveedor y borradores de venta para reemplazar Flows por conversación con Infobip. Sus funciones solo son invocables desde servidor.
+
+La migración `202611140004_onboarding_and_price_confirmation.sql` agrega giro y fecha de alta explícita, exige alta completa antes de vender y agrega resúmenes de precio versionados. Negocios existentes quedan pendientes de completar giro; no se inventa uno en la migración. La confirmación de borradores ahora recibe versión y devuelve un estado tipado. Ver el contrato de datos para adaptar consumidores anteriores.

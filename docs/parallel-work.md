@@ -8,7 +8,7 @@ Leer esta guía y [los contratos](integration-contracts.md). Después continuar 
 
 | Parte | Estado y evidencia | Pendiente |
 | --- | --- | --- |
-| Datos / R1 | Migraciones 001–003 aplicadas localmente; repositorios de ventas, eventos y borradores; TypeScript y comprobaciones SQL pasaron | Parser, lookup de negocio, catálogo/reportes y medios |
+| Datos / R1 | Migraciones 001–004 aplicadas localmente; ventas/eventos/borradores, alta explícita, lookup/catálogo, parser de texto y confirmación versionada | Conectar conversación R2; reportes, IA y medios |
 | Infobip / R2 | El plan recibido reporta un envío real recibido por el destinatario | Adaptador, autenticación del webhook, entrada real y conversación automática |
 | HTTP / R3 | Esqueleto Next.js con páginas iniciales | Contratos TS, endpoint público, paneles y despliegue |
 | Supabase alojado | Repositorio vinculado a `microai-dev` | No asumir migraciones locales desplegadas allí |
@@ -19,7 +19,7 @@ Varios archivos de `src/`, migraciones y comprobaciones siguen sin seguimiento d
 
 | Rol | Primera entrega | Avanza usando | Entrega a otros |
 | --- | --- | --- | --- |
-| R1 | Parser de texto, catálogo y lookup de negocio por número | Catálogo fixture o base local | Intérprete real y consultas para R2 |
+| R1 | Entregar parser/lookup/catálogo ya implementados y contrato de alta/precios; luego reportes | Catálogo fixture o base local | `interpretForWhatsApp`, alta y confirmación versionada para R2 |
 | R2 | Adaptador Infobip, normalización/autenticación y confirmaciones | Intérprete mock y repositorios existentes R1 | Handler y fixtures sanitizados para R3 |
 | R3 | Contratos TS, transporte HTTP y URL pública | Handler mock inyectado | Ruta desplegada y configuración para R2 |
 
@@ -56,7 +56,9 @@ Si Infobip no recibe mensajes, continuar A/B y documentar el bloqueo. Una demo w
 ## Reglas comunes
 
 - Un usuario propietario por negocio; número WhatsApp verificado y normalizado como identificación principal; UUID como clave interna. Nunca aceptar identidad de negocio desde el texto/formulario.
+- Alta explícita obligatoria: preguntar nombre y giro del negocio y guardar ambos. El giro se conserva para futuras sugerencias IA de productos; esas sugerencias no crean productos automáticamente en este MVP.
 - Precio editable solo desde catálogo y conservado como snapshot en la venta.
+- Si cambia el catálogo después del resumen, mostrar precio/total anterior y nuevo, y solicitar confirmación de la nueva versión. No reutilizar silenciosamente la aprobación anterior.
 - Toda venta conversacional del MVP requiere resumen y confirmación explícita, incluso con confianza alta.
 - Stock obligatorio y no negativo; falta de stock rechaza la venta completa. No poner a cero unidades que todavía existen.
 - MXN en centavos enteros; cantidades hasta tres decimales; fechas ISO UTC. Ventas y utilidad son conceptos distintos.

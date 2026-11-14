@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
+import { confirmationSchema, draftSchema } from './sale-results';
 
 const phone = z.string().regex(/^[1-9][0-9]{7,14}$/);
 const key = z.string().min(1).max(200);
@@ -34,18 +35,19 @@ export async function createSaleDraft(client: SupabaseClient, input: {
     p_sender: data.verifiedSender, p_operation_key: data.operationKey, p_items: data.items,
   });
   if (result.error) throw result.error;
-  return result.data;
+  return draftSchema.parse(result.data);
 }
 
 export async function confirmSaleDraft(client: SupabaseClient, input: {
-  verifiedSender: string; draftId: string;
+  verifiedSender: string; draftId: string; quoteVersion: number;
 }) {
-  const data = z.object({ verifiedSender: phone, draftId: z.string().uuid() }).strict().parse(input);
+  const data = z.object({ verifiedSender: phone, draftId: z.string().uuid(),
+    quoteVersion: z.number().int().positive() }).strict().parse(input);
   const result = await client.rpc('confirm_whatsapp_sale_draft', {
-    p_sender: data.verifiedSender, p_draft_id: data.draftId,
+    p_sender: data.verifiedSender, p_draft_id: data.draftId, p_quote_version: data.quoteVersion,
   });
   if (result.error) throw result.error;
-  return result.data;
+  return confirmationSchema.parse(result.data);
 }
 
 export async function cancelSaleDraft(client: SupabaseClient, input: {

@@ -31,3 +31,7 @@ Gastos: se persiste la propuesta antes de pedir confirmación. `CANCELAR GASTO <
 Errores de negocio como `OUT_OF_STOCK`, `DRAFT_EXPIRED` y `EXPENSE_DRAFT_CANCELLED` se convierten en explicaciones guardadas y enviadas al comerciante. Fallos de base/proveedor permanecen reintentables, sin exponer mensajes internos.
 
 Fuentes del adaptador: https://www.infobip.com/docs/developer-resources/api-fundamentals/webhooks ; https://www.infobip.com/docs/tutorials/send-an-interactive-product-message-with-whatsapp-api ; https://github.com/infobip/infobip-api-java-client/blob/master/whatsapp.md . El parser usa esquema legacy `results[].{messageId,from,to,receivedAt,message:{type,text}}`; contrastar con evento real de la cuenta antes de habilitar producción.
+
+## Puerto de audio R1
+
+`createRole2Service` acepta `audio: {reader, transcriber}`. El transcriptor OpenAI con `gpt-transcribe` y la preparación por actor están implementados; ver `docs/audio-transcription.md`. El evento interno admite `kind: 'audio'` con referencia privada. El parser Infobip público conserva medios como `unsupported` hasta contrastar un evento real e implementar el lector/descarga segura; no confiar en un storageKey enviado externamente. Las confirmaciones habladas nunca ejecutan comandos.

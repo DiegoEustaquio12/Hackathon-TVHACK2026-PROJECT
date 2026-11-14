@@ -223,3 +223,12 @@ El usuario prefiere español claro, acciones concretas y continuidad autónoma. 
   ```
 - Alcance: pruebas SQL contra PostgreSQL alojado; no prueban concurrencia remota entre conexiones, transporte PostgREST, despliegue Next.js ni WhatsApp real. La integración local previa sí cubre concurrencia/PostgREST y mantiene su restricción a localhost.
 - Siguiente bloqueo operativo: R3 publica/configura aplicación HTTPS; R2 enlaza Infobip y comprueba recepción/respuesta y venta desde teléfono real. R1 puede continuar medios/IA en paralelo.
+
+## Entrega R1 — adaptador de transcripción y confirmación segura
+
+- Implementados `src/modules/media/audio.ts`, `openai-transcriber.ts` y `interpretation/audio.ts`: puerto de lectura privada por actor, límite 10 MiB, OpenAI real vía fetch con `gpt-transcribe`, español, timeout 20 s, errores sin secretos y transcripción de hasta 2000 caracteres.
+- `createRole2Service` recibe `audio: {reader, transcriber}` opcional. La conversación resuelve identidad/alta antes de leer el audio, reutiliza el intérprete determinista, conserva transcripción/operación en selecciones y exige confirmación textual versionada. Un comando hablado no confirma ni cancela ventas/gastos/altas.
+- Comprobados tipos, lint, 80 pruebas, build y prueba con Supabase local real ampliada: borrador de audio sin efecto contable, replay sin retranscribir, posterior confirmación textual y descuento único. OpenAI, lectura del archivo y transporte Infobip están simulados en esa integración.
+- No hubo llamada real a OpenAI: no hay clave configurada en el entorno revisado. `.env.example` añade solo `OPENAI_API_KEY=` vacío. No se verificó precisión/costo/latencia.
+- **R1 implementado, canal todavía no habilitado:** faltan lector privado de almacenamiento, descarga segura/normalización de audio real Infobip y composición HTTP por R2/R3. El parser público sigue devolviendo `unsupported` para medios. La demo web sigue mock. No hay migraciones nuevas ni despliegues en esta entrega.
+- Contrato, ejemplo de composición y límites: `docs/audio-transcription.md`. Imágenes, respaldo de IA y creación asistida de productos siguen pendientes.

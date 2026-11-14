@@ -4,6 +4,13 @@ import { createClient } from '@supabase/supabase-js';
 import { completeBusinessOnboarding } from '../src/modules/data/businesses';
 import { createStandardProduct,updateProductCommercials } from '../src/modules/data/products';
 import { createRole2Service } from '../src/modules/orchestration/service';
+import { createConversation } from '../src/modules/orchestration/conversation';
+import { createConversationRepositories } from '../src/modules/orchestration/repositories';
+import { createAudioPreparation } from '../src/modules/interpretation/audio';
+import { createOpenAIAudioTranscriber } from '../src/modules/media/openai-transcriber';
+import { createDurableProcessing } from '../src/modules/messaging/processing';
+import { createSupabaseProcessingStore } from '../src/modules/messaging/supabase-processing';
+import type { InboundMessage } from '../src/modules/messaging/contracts';
 
 // Opt-in only. Uses real local PostgreSQL/PostgREST and mocks ONLY Infobip HTTP.
 it.skipIf(process.env.RUN_LOCAL_SUPABASE_TESTS !== 'true')('persists the real webhook flow, replays, repricing and expense cancellation',async()=>{
@@ -63,6 +70,25 @@ it.skipIf(process.env.RUN_LOCAL_SUPABASE_TESTS !== 'true')('persists the real we
     expect(sales.data).toHaveLength(2);
     const stock=await client.from('products').select('stock').eq('id',product.id).single();
     expect(Number(stock.data?.stock)).toBe(6);
+    // Real DB and draft confirmation; OpenAI/storage are fixtures, not real audio accuracy tests.
+    const transcribeHttp=vi.fn<typeof fetch>(async()=>Response.json({text:'Vendí una coca'}));
+    const audioConversation=createConversation({...createConversationRepositories(client),
+      prepareAudio:createAudioPreparation({reader:{read:async()=>({bytes:new Uint8Array([79,103,103,83]),mimeType:'audio/ogg'})},
+        transcriber:createOpenAIAudioTranscriber({apiKey:'fixture'},transcribeHttp)})});
+    const audioMessage:InboundMessage={provider:'infobip',providerMessageId:`${prefix}-audio`,from:sender,to:recipient,
+      receivedAt:new Date().toISOString(),kind:'audio',audio:{storageKey:`${businessId}/fixture.ogg`,mimeType:'audio/ogg'}};
+    const durable=createDurableProcessing(createSupabaseProcessingStore(client));
+    const audioSummary=await durable.run(audioMessage,()=>audioConversation(audioMessage));
+    expect(audioSummary).toContain('Transcripción: «Vendí una coca»');
+    expect(audioSummary).toContain('No se ha registrado la venta');
+    expect(await durable.run(audioMessage,()=>audioConversation(audioMessage))).toBe(audioSummary);
+    expect(transcribeHttp).toHaveBeenCalledTimes(1);
+    expect((await client.from('sales').select('id').eq('business_id',businessId)).data).toHaveLength(2);
+    expect(Number((await client.from('products').select('stock').eq('id',product.id).single()).data?.stock)).toBe(6);
+    await send('audio-confirm',command(audioSummary));
+    await send('audio-confirm-repeat',command(audioSummary));
+    expect((await client.from('sales').select('id').eq('business_id',businessId)).data).toHaveLength(3);
+    expect(Number((await client.from('products').select('stock').eq('id',product.id).single()).data?.stock)).toBe(5);
     const expense=await send('expense','Gasté 50 en luz');
     const expenseCommand=expense.split('\n')[1].replace('Responde ','');
     await send('cancel-expense','CANCELAR GASTO');

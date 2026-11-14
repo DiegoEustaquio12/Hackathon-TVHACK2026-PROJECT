@@ -15,6 +15,7 @@ begin
     insert into public.businesses (id, name, whatsapp_id) values
       (b, 'Temporary test business', '19999990001'),
       (other_b, 'Other test business', '19999990002');
+    update public.businesses set business_type = 'Abarrotes', onboarding_completed_at = now() where id in (b, other_b);
     insert into public.products (id, business_id, name, sale_price_cents, stock) values
       (p, b, 'Coca', 2000, 10), (bread, b, 'Pan', 1500, 10),
       (foreign_p, other_b, 'Foreign product', 100, 10);

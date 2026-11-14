@@ -11,7 +11,8 @@ const command = z.object({
   }).strict()).min(1).max(100),
 }).strict();
 
-/** Server only. The caller authenticates the provider webhook and binds the sender.
+/** @deprecated Low-level helper; conversational consumers must use create/confirmSaleDraft.
+ * Server only. The caller authenticates the provider webhook and binds the sender.
  * Pass a privileged server client; never import this repository from client UI.
  * SQL remains the authority for validation, pricing, stock and idempotency.
  */

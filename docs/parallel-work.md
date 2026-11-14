@@ -9,6 +9,7 @@ Las instrucciones detalladas están separadas por persona: [Rol 1](roles/rol-1-i
 - Mantener módulos de proveedor detrás de interfaces. Nunca incluir secretos en el navegador ni registrar tokens, audio o imágenes en logs.
 - Acuerdo monetario inicial: cantidades en MXN como enteros en centavos (`*_cents`); timestamps ISO UTC; errores con `{ code, message }`.
 - Los contratos TypeScript compartidos viven en `src/contracts/`; propietario primario: rol 3. Los cambios se discuten por PR.
+- El POS conversacional se captura con WhatsApp Flows: sus respuestas se normalizan en el webhook/orquestación (rol 2), se validan y se guardan mediante operaciones del dominio (rol 1). El frontend web conserva su propio formulario pero comparte el mismo contrato de venta.
 
 ## Rol 1 — IA multimodal, interpretación y datos
 

@@ -12,8 +12,11 @@ Base inicial del MVP descrito en `MicroAI_MVP_Arquitectura_Plan.md` (documento f
 ## Inicio
 
 1. `npm install`
-2. Copiar `.env.example` a `.env.local` y completar los secretos necesarios.
+2. Copiar `.env.example` a `.env.local`; `MOCK_MODE=true` permite ejecutar sin credenciales externas.
 3. `npm run dev`
+
+Demo: `/chat` y `/distribuidores`. Validación: `npm run validate`, `npm run build` y `npm run test:e2e`.
+La guía de entorno, pruebas, contratos y despliegue está en [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Trabajo en paralelo
 

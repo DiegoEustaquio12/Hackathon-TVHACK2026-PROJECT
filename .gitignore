@@ -20,3 +20,6 @@ lerna-debug.log*
 *.pem
 .eslintcache
 .turbo/
+test-results/
+playwright-report/
+.taste-skill/

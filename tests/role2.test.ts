@@ -12,7 +12,7 @@ function dependencies() {
     resolveActor: vi.fn(async () => ({ businessId: 'fixture', verifiedSender: sender, channel: 'whatsapp' as const })),
     interpret: vi.fn(async () => ({ intent: 'sale' as const, confidence: 1, needsConfirmation: true, data: { items: [{ product_id: draftId, quantity: 3 }] } })),
     summarize: vi.fn(async () => '3 cocas: $60.00 MXN'),
-    createDraft: vi.fn(async () => ({ draftId })), confirmDraft: vi.fn(async () => ({ totalCents: 6000 })), cancelDraft: vi.fn(async () => {}),
+    createDraft: vi.fn(async () => ({ draft_id: draftId, status: 'pending' as const, expires_at: '2026-11-14T12:15:00Z', quote_version: 1, quote: { items: [{ product_id: draftId, description: 'cocas', quantity: 3, unit_price_cents: 2000, subtotal_cents: 6000 }], total_cents: 6000 } })), confirmDraft: vi.fn(async () => ({ status: 'confirmed' as const, receipt: { sale_id: draftId, total_cents: 6000, replayed: false, items: [] } })), cancelDraft: vi.fn(async () => {}),
   };
 }
 describe('Role 2', () => {
@@ -33,8 +33,8 @@ describe('Role 2', () => {
     expect(deps.confirmDraft).not.toHaveBeenCalled();
     await conversation({ ...message, text: 'sí' });
     expect(deps.confirmDraft).not.toHaveBeenCalled();
-    expect(await conversation({ ...message, text: `CONFIRMAR ${draftId}` })).toContain('$60.00');
-    expect(deps.confirmDraft).toHaveBeenCalledWith(sender, draftId);
+    expect(await conversation({ ...message, text: `CONFIRMAR ${draftId} 1` })).toContain('$60.00');
+    expect(deps.confirmDraft).toHaveBeenCalledWith(sender, draftId, 1);
   });
   it('does not operate when sender is unlinked or interpretation is uncertain', async () => {
     const deps = dependencies();

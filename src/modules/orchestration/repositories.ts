@@ -1,17 +1,24 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { z } from 'zod';
 import { createSaleDraft, confirmSaleDraft, cancelSaleDraft } from '../data/conversations';
+import { findBusinessByWhatsApp, interpretForWhatsApp } from '../data/businesses';
 import type { SaleItem } from './conversation';
-/** RPCs return JSON objects; validate before exposing values to orchestration. */
 export function createConversationRepositories(client: SupabaseClient) {
   return {
-    async createDraft(verifiedSender: string, operationKey: string, items: SaleItem[]) {
-      const value = z.object({ draft_id: z.string().uuid() }).parse(await createSaleDraft(client, { verifiedSender, operationKey, items }));
-      return { draftId: value.draft_id };
+    async resolveActor(verifiedSender: string) {
+      const business = await findBusinessByWhatsApp(client, verifiedSender);
+      return business?.onboarding_completed_at && business.business_type
+        ? { businessId: business.id, verifiedSender, channel: 'whatsapp' as const } : null;
     },
-    async confirmDraft(verifiedSender: string, draftId: string) {
-      const value = z.object({ total_cents: z.number().int().nonnegative().safe() }).parse(await confirmSaleDraft(client, { verifiedSender, draftId }));
-      return { totalCents: value.total_cents };
+    async interpret(actor: { businessId: string; verifiedSender: string }, request: { text: string }) {
+      const result = await interpretForWhatsApp(client, actor.verifiedSender, request);
+      if (result.business.id !== actor.businessId) throw new Error('Identity changed');
+      return result.interpretation;
+    },
+    createDraft(verifiedSender: string, operationKey: string, items: SaleItem[]) {
+      return createSaleDraft(client, { verifiedSender, operationKey, items });
+    },
+    confirmDraft(verifiedSender: string, draftId: string, quoteVersion: number) {
+      return confirmSaleDraft(client, { verifiedSender, draftId, quoteVersion });
     },
     async cancelDraft(verifiedSender: string, draftId: string) { await cancelSaleDraft(client, { verifiedSender, draftId }); },
   };

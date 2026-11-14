@@ -157,3 +157,9 @@ Implementación en `src/modules/messaging/`, `src/modules/orchestration/` y `src
 Entregado: adaptador Infobip, parser de texto, autenticación Basic configurable, handler reutilizable, coordinación de almacenamiento durable mediante puerto, conversación con resumen/confirmación explícita, adaptador de borradores R1 y sesiones opacas con canje/revocación mediante almacenamiento inyectado.
 
 Comprobado: 21 pruebas unitarias/integración con mocks del proyecto, typecheck, lint de archivos R2 y build. El lint global presenta advertencia preexistente por `next-env.d.ts` ignorado. No se ha probado WhatsApp real ni persistencia real de sesiones/claims; faltan los adaptadores R1 y conexión HTTP R3. La confirmación frente a edición concurrente de precios requiere comparación atómica de R1 antes de habilitarla.
+
+### Segunda entrega R2 — integración con R1
+
+Integrado `main` con migración 004. Conversación de alta con nombre/giro explícitos y confirmación firmada ligada al remitente. Adaptador real de lookup/intérprete y confirmaciones `draftId + quoteVersion`; resumen desde quote persistida, aviso de precio cambiado y rechazo de versión antigua. Composición `createRole2Service` lista para transporte R3.
+
+Adaptadores Supabase de procesamiento durable y sesiones/enlaces entregados. SQL propuesto en `src/modules/auth/storage/role2.sql` para revisión y aplicación por R1; no aplicado local ni remoto. Faltan prueba real de esos RPC/tablas, worker de recuperación autónoma, montaje HTTP/login R3 y recepción/respuesta real Infobip. Sustituye los pendientes de lookup/intérprete/cotización señalados en la primera entrega; persisten los de infraestructura.

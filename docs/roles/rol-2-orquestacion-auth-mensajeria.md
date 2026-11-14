@@ -145,3 +145,11 @@ Propiedad del esquema de negocio, componentes visuales ni despliegue.
 ## Criterio de entrega
 
 Un mensaje entrante puede asociarse a un negocio autenticado, pasar por interpretación, pedir confirmación cuando haga falta y responder por el canal de origen sin duplicar operaciones. Para la demo se prioriza Infobip; se reporta por separado qué pruebas se completaron con mocks y cuáles se verificaron con WhatsApp real.
+
+## Entrega de implementación local R2
+
+Implementación en `src/modules/messaging/`, `src/modules/orchestration/` y `src/modules/auth/`. Ver integración y pendientes en `src/modules/messaging/README.md`.
+
+Entregado: adaptador Infobip, parser de texto, autenticación Basic configurable, handler reutilizable, coordinación de almacenamiento durable mediante puerto, conversación con resumen/confirmación explícita, adaptador de borradores R1 y sesiones opacas con canje/revocación mediante almacenamiento inyectado.
+
+Comprobado: 21 pruebas unitarias/integración con mocks del proyecto, typecheck, lint de archivos R2 y build. El lint global presenta advertencia preexistente por `next-env.d.ts` ignorado. No se ha probado WhatsApp real ni persistencia real de sesiones/claims; faltan los adaptadores R1 y conexión HTTP R3. La confirmación frente a edición concurrente de precios requiere comparación atómica de R1 antes de habilitarla.

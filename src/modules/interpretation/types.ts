@@ -31,4 +31,5 @@ export type InterpretationResult = {
   needsConfirmation: boolean;
   clarification?: string;
   clarificationOptions?: { product_id: string; label: string }[];
+  clarificationLine?: number;
 };

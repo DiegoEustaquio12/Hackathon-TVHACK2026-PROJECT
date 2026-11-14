@@ -1,6 +1,6 @@
 import type { InterpretationResult } from '../interpretation/types';
 import type { createAccounting } from './accounting';
-import type { createChoices } from './choices';
+import type { createChoices, SelectionContext } from './choices';
 import { z } from 'zod';
 import { draftSchema, type ConfirmationResult, formatPriceChangeNotice, quoteSchema } from '../data/sale-results';
 import type { InboundMessage, WhatsAppActor } from '../messaging/contracts';
@@ -8,7 +8,7 @@ export type SaleItem = { product_id: string; quantity: number };
 export interface ConversationDependencies {
   resolveActor(sender: string): Promise<WhatsAppActor | null>;
   interpret(actor: WhatsAppActor, request: { text: string }): Promise<InterpretationResult>;
-  interpretSelection?(actor: WhatsAppActor, text: string, productId: string): Promise<InterpretationResult>;
+  interpretSelection?(actor: WhatsAppActor, text: string, selections: Record<string,string>): Promise<InterpretationResult>;
   accounting?: ReturnType<typeof createAccounting>;
   choices?: ReturnType<typeof createChoices>;
   onboard?(message: InboundMessage): Promise<string>;
@@ -45,15 +45,17 @@ export function createConversation(deps: ConversationDependencies) {
     if (/^(hola|buenos días|buenas tardes)[!. ]*$/i.test(text)) return 'Hola. Escribe tu venta con productos y cantidades; te mostraré un resumen antes de registrarla.';
     let result: InterpretationResult;
     let operationKey = `infobip:${message.providerMessageId}`;
+    let selectionContext: SelectionContext | undefined;
     if (/^ELEGIR\b/i.test(text)) {
       let selection;
       try { selection = deps.choices?.read(message); }
       catch { return 'La selección venció o no es válida. Escribe la venta completa otra vez.'; }
       if (!selection || !deps.interpretSelection) return 'Escribe la venta completa con la presentación de cada producto.';
-      result = await deps.interpretSelection(actor, selection.originalText, selection.productId);
+      result = await deps.interpretSelection(actor, selection.originalText, selection.selections);
       operationKey = selection.operationKey;
+      selectionContext = selection;
     } else result = await deps.interpret(actor, { text });
-    if (result.clarificationOptions?.length && deps.choices) return deps.choices.prompt(message, result);
+    if (result.clarificationOptions?.length && deps.choices) return deps.choices.prompt(message, result, selectionContext);
     if (result.clarification) return result.clarification;
     if (result.intent === 'expense' && result.data.expense && deps.accounting) return deps.accounting.propose(message, result.data.expense);
     if (result.intent === 'report' && result.data.report === 'sales_today' && deps.accounting) return deps.accounting.report(message.from);

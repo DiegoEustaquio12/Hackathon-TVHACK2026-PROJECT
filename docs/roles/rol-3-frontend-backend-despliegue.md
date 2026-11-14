@@ -6,6 +6,8 @@ Entregar el transporte público de Infobip y los paneles de Knectan. WhatsApp es
 
 ## Trabajo inmediato en paralelo
 
+**Ruta disponible:** `POST /api/webhooks/infobip` ya compone el handler real y limita el cuerpo a 256 KiB. Ver `docs/DEPLOYMENT.md` para habilitación/variables; siguiente tarea es desplegar con la base alojada migrada hasta 007 y entregar URL real a R2. La integración local está probada, el transporte contra Infobip real todavía requiere configuración de cuenta.
+
 1. Materializar en `src/contracts/` los tipos documentados de Actor, mensaje, interpretación y errores. Mantener mocks compatibles para que R1/R2 no esperen al despliegue.
 2. Preparar `POST /api/webhooks/infobip` con handler inyectable, límite de tamaño y lectura única del cuerpo. Entregar bytes/cabeceras originales a R2; autenticación y clasificación pertenecen a R2. Probar con handler mock mientras llega el real.
 3. Publicar HTTPS en Vercel y entregar URL/método/estado a R2 para configurar enrutamiento. Diferenciar ruta montada de integración real; el mock público no puede fingir efectos de venta.

@@ -6,6 +6,8 @@ Conectar canales e identidad con interpretación y operaciones del negocio. Para
 
 ## Trabajo inmediato en paralelo
 
+**Estado actualizado:** persistencia propuesta incorporada a migración 007; selección por renglón y cancelación de gastos corregidas. Los comandos `ELEGIR <token> <opción>` conservan contexto completo; gastos usan borradores persistentes. Errores de negocio se traducen a respuestas durables. Coordinar credenciales/perfil Basic y verificar entrada real con la ruta ya montada; no volver a implementar el almacenamiento ni montar otra ruta.
+
 **Nuevas capacidades R1:** leer [estándar de productos](../product-standard.md) y [gastos/reportes](../accounting-contract.md). `clarificationOptions` entrega IDs/nombres completos cuando “coca” tiene varias presentaciones: pedir elección y reconstruir el carrito antes del resumen; no confirmar inmediatamente la venta al elegir un producto. Las intenciones ahora incluyen `expense` (propuesta que necesita aprobación y clave estable) y `report` (`sales_today`, lectura sin aprobación). Si falta zona horaria, pedirla antes del reporte. No pasar gastos a los borradores de venta.
 
 1. Leer [guía paralela](../parallel-work.md) y [contratos](../integration-contracts.md); R3 materializa los tipos TS.

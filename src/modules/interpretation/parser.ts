@@ -8,7 +8,7 @@ const clarify = (message: string): InterpretationResult => ({
 });
 
 /** Pure deterministic parser. Never writes data, creates products or accepts client prices. */
-export function interpretSaleMessage(request: InterpretationRequest, catalogue: CatalogueProduct[]): InterpretationResult {
+export function interpretSaleMessage(request: InterpretationRequest, catalogue: CatalogueProduct[], selections: Record<string,string> = {}): InterpretationResult {
   if (request.media?.length) return clarify('Por ahora registra la venta por texto; audio e imágenes aún no están habilitados.');
   const text = request.text?.trim() ?? '';
   if (!text || text.length > 2000) return clarify('Escribe una venta de hasta 2000 caracteres con cantidades y productos.');
@@ -34,18 +34,21 @@ export function interpretSaleMessage(request: InterpretationRequest, catalogue: 
   const parts = body.split(/\s+y\s+(?=[\d-]|un(?:a|o)?\b)|,\s+(?=[\d-]|un(?:a|o)?\b)/);
   if (parts.length > 100) return clarify('La venta admite hasta 100 productos.');
   const items = new Map<string, number>();
-  for (const part of parts) {
+  for (const [lineIndex, part] of parts.entries()) {
     const match = /^(\d+(?:[.,]\d{1,3})?|un|una|uno)\s+(.+?)(?:\s+a\s+\$?(\d+(?:[.,]\d{1,2})?))?$/.exec(part.trim());
     if (!match) return clarify('Indica una cantidad positiva y el producto, por ejemplo: Vendí 3 cocas y 2 panes.');
     const quantity = /^un[ao]?$/.test(match[1]) ? 1 : Number(match[1].replace(',', '.'));
     if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 999999999.999) return clarify('La cantidad debe ser positiva y tener hasta tres decimales.');
     const candidates = findProductCandidates(match[2], catalogue);
     if (candidates.length === 0) return clarify(`No encontré «${match[2]}» en tu catálogo. Regístralo desde productos o indica otro nombre.`);
-    if (candidates.length > 1) return {
+    const selected = selections[String(lineIndex)];
+    if (selected && !candidates.some(p => p.id === selected)) return clarify('El catálogo cambió. Escribe de nuevo la venta con sus presentaciones.');
+    if (candidates.length > 1 && !selected) return {
       ...clarify(`¿Cuál producto vendiste: ${candidates.slice(0, 5).map(p => p.name).join(', ')}?`),
       clarificationOptions: candidates.map(p => ({ product_id: p.id, label: p.name })),
+      clarificationLine: lineIndex,
     };
-    const product = candidates[0];
+    const product = selected ? candidates.find(p => p.id === selected)! : candidates[0];
     if (product.sale_unit === 'piece' && !Number.isInteger(quantity)) return clarify(`${product.name} se vende por pieza; indica una cantidad entera.`);
     if (match[3] !== undefined) {
       const cents = Math.round(Number(match[3].replace(',', '.')) * 100);

@@ -18,7 +18,8 @@ export function createDurableProcessing(store: ProcessingStore): DurableProcessi
         await store.complete(message, claim.leaseId, reply);
         return reply;
       } catch (error) {
-        await store.fail(message, claim.leaseId);
+        // A lost lease must not replace the original error or undo another worker.
+        await store.fail(message, claim.leaseId).catch(() => {});
         throw error;
       }
     },

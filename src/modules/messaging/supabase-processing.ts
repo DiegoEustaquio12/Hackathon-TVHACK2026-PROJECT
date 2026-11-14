@@ -6,7 +6,7 @@ const claimSchema = z.discriminatedUnion('state', [
   z.object({ state: z.literal('busy') }), z.object({ state: z.literal('completed'), reply: z.string() }),
   z.object({ state: z.literal('claimed'), leaseId: z.string().uuid() }),
 ]);
-/** Requires storage/role2.sql approved/applied by R1. Service role client only. */
+/** Requires migration 202611140007_role2_durable_storage.sql. Service role client only. */
 export function createSupabaseProcessingStore(client: SupabaseClient): ProcessingStore {
   const key = (m: InboundMessage) => `${m.provider}:${m.providerMessageId}`;
   async function finish(m: InboundMessage, lease: string, reply: string | null) {

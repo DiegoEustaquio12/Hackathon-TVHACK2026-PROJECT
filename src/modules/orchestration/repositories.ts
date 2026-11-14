@@ -15,13 +15,10 @@ export function createConversationRepositories(client: SupabaseClient) {
       if (result.business.id !== actor.businessId) throw new Error('Identity changed');
       return result.interpretation;
     },
-    async interpretSelection(actor: { businessId: string; verifiedSender: string }, text: string, productId: string) {
+    async interpretSelection(actor: { businessId: string; verifiedSender: string }, text: string, selections: Record<string,string>) {
       const { business, products } = await getBusinessCatalogue(client, actor.verifiedSender);
       if (business.id !== actor.businessId) throw new Error('Identity changed');
-      const original = interpretSaleMessage({ text }, products);
-      const options = original.clarificationOptions;
-      if (!options?.some(p => p.product_id === productId)) return { intent: 'unknown' as const, confidence: 0, data: {}, needsConfirmation: false, clarification: 'El catálogo cambió. Escribe de nuevo la venta con sus presentaciones.' };
-      return interpretSaleMessage({ text }, products.filter(p => p.id === productId || !options.some(o => o.product_id === p.id)));
+      return interpretSaleMessage({ text }, products, selections);
     },
     createDraft(verifiedSender: string, operationKey: string, items: SaleItem[]) {
       return createSaleDraft(client, { verifiedSender, operationKey, items });

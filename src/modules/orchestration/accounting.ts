@@ -1,13 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { createContinuations } from '../auth/continuations';
-import { getBusinessDailyReport, recordExpense, setBusinessTimeZone, type DailyReport } from '../data/accounting';
+import { getBusinessDailyReport, setBusinessTimeZone, type DailyReport } from '../data/accounting';
+import { createExpenseDraftRepository } from '../data/expense-drafts';
 import type { InboundMessage } from '../messaging/contracts';
 const expense = z.object({ concept: z.string().trim().min(1).max(200), amount_cents: z.number().int().positive().max(2147483647) });
-const pending = expense.extend({ operationKey: z.string().min(1).max(200), occurredAt: z.iso.datetime({ offset: true }) });
+const pending = z.object({ draftId: z.string().uuid() });
 const money = (v: number) => `$${(v / 100).toFixed(2)} MXN`;
 export interface AccountingDependencies {
-  record(input: { verifiedSender: string; operationKey: string; concept: string; amountCents: number; occurredAt: string }): Promise<unknown>;
+  drafts: ReturnType<typeof createExpenseDraftRepository>;
   report(sender: string): Promise<DailyReport>;
   setTimeZone(sender: string, zone: string): Promise<void>;
 }
@@ -24,22 +25,34 @@ export function createAccounting(deps: AccountingDependencies, secret: string, n
     }
   };
   return {
-    propose(message: InboundMessage, input: unknown) {
+    async propose(message: InboundMessage, input: unknown) {
       const data = expense.parse(input);
-      const token = tokens.issue(message.from, 'expense', { ...data, operationKey: `expense:${message.providerMessageId}`, occurredAt: message.receivedAt });
-      return `Gasto propuesto: ${data.concept}, ${money(data.amount_cents)}. No se ha guardado.\nResponde CONFIRMAR GASTO ${token}\nVence en 15 minutos. Para descartarlo no confirmes o escribe CANCELAR GASTO.`;
+      const draft = await deps.drafts.propose({ verifiedSender:message.from,operationKey:`expense:${message.providerMessageId}`,
+        concept:data.concept,amountCents:data.amount_cents,occurredAt:message.receivedAt });
+      if (draft.status !== 'pending') return 'La propuesta de gasto ya fue procesada. Escribe un gasto nuevo si corresponde.';
+      const token = tokens.issue(message.from, 'expense', { draftId:draft.draft_id });
+      return `Gasto propuesto: ${data.concept}, ${money(data.amount_cents)}. No se ha guardado.\nResponde CONFIRMAR GASTO ${token}\nVence en 15 minutos. Para cancelar esta propuesta responde CANCELAR GASTO ${token}. CANCELAR GASTO sin token cancela todas tus propuestas pendientes.`;
     },
     report,
     async command(message: InboundMessage): Promise<string | null> {
       const text = message.text?.trim() ?? '';
-      if (/^CANCELAR GASTO$/i.test(text)) return 'No se registró ningún gasto con este mensaje. Descarta la propuesta anterior; su confirmación vence en 15 minutos.';
+      const cancel = /^CANCELAR GASTO(?: (\S+))?$/i.exec(text);
+      if (cancel) {
+        let draftId: string | undefined;
+        if (cancel[1]) {
+          try { draftId = pending.parse(tokens.read(cancel[1],message.from,'expense')).draftId; }
+          catch { return 'La propuesta no es válida o venció.'; }
+        }
+        const n = await deps.drafts.cancel(message.from,draftId);
+        return n ? `Se cancelaron ${n} propuestas de gasto. Sus confirmaciones ya no son válidas.` : 'No hay propuestas de gasto pendientes para cancelar.';
+      }
       const confirm = /^CONFIRMAR GASTO (\S+)$/i.exec(text);
       if (confirm) {
         let data: z.infer<typeof pending>;
         try { data = pending.parse(tokens.read(confirm[1], message.from, 'expense')); }
         catch { return 'La propuesta no es válida o venció. Escribe el gasto otra vez.'; }
-        await deps.record({ verifiedSender: message.from, operationKey: data.operationKey, concept: data.concept, amountCents: data.amount_cents, occurredAt: data.occurredAt });
-        return `Gasto registrado: ${data.concept}, ${money(data.amount_cents)}.`;
+        const receipt = await deps.drafts.confirm(message.from,data.draftId);
+        return `Gasto registrado: ${receipt.concept}, ${money(receipt.amount_cents)}.`;
       }
       const zone = /^ZONA\s+(\S+)$/i.exec(text);
       if (zone) {
@@ -53,6 +66,6 @@ export function createAccounting(deps: AccountingDependencies, secret: string, n
   };
 }
 export function createSupabaseAccounting(client: SupabaseClient, secret: string) {
-  return createAccounting({ record: input => recordExpense(client, input), report: sender => getBusinessDailyReport(client, sender),
+  return createAccounting({ drafts: createExpenseDraftRepository(client), report: sender => getBusinessDailyReport(client, sender),
     setTimeZone: (sender, zone) => setBusinessTimeZone(client, sender, zone) }, secret);
 }

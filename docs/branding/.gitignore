@@ -1,0 +1,6 @@
+qa/pagina-*.png
+qa/contacto-*.jpg
+qa/bloques_texto.json
+__pycache__/
+KNECTAN_FUENTES_Y_RECURSOS.zip
+tokens_propuestos.json

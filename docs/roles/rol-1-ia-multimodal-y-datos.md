@@ -6,6 +6,8 @@ Interpretar texto, audio e imágenes con salida estructurada y persistir el domi
 
 ## Trabajo inmediato en paralelo
 
+**Integración corregida:** migración 007 revisada y probada en local; almacenamiento R2, gasto cancelable y respuesta durable disponibles. La prueba `python3 scripts/check-role2-local.py` conecta los servicios con PostgreSQL local y prueba concurrencia sin enviar mensajes reales. Siguiente: apoyar aplicación remota coordinada y avanzar medios/IA, sin duplicar los repositorios.
+
 **Entrega ampliada disponible:** estándar de productos y alias persistidos, creación/edición comercial segura, interpretación de “una coca” con preguntas por presentación, gastos idempotentes y reporte diario por zona IANA explícita. Migraciones 005–006; contratos en `docs/product-standard.md` y `docs/accounting-contract.md`. Sigue pendiente la interpretación de audio/imágenes, la IA y conectar estos servicios desde R2/R3.
 
 **Entrega actual:** migración 004 de alta explícita y precios versionados; parser `interpretSaleMessage`; adaptadores `findBusinessByWhatsApp`, `getBusinessCatalogue`, `interpretForWhatsApp` y `completeBusinessOnboarding`. El catálogo se obtiene por número verificado, nunca por un negocio elegido desde el mensaje. Ver contratos actualizados; los pasos siguientes describen el alcance de esta entrega y su integración.

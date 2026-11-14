@@ -95,4 +95,26 @@ Texto requiere `text`; imagen requiere `name`, `alt`, `data_url`; audio requiere
 
 Para conectar servicios reales desde el bootstrap **del servidor**, llamar `configureHttp(services, sessionVerifier)` de `src/modules/http/container.ts`. R2 debe implementar `SessionVerifier.verify(request)` verificando su proveedor de identidad; el actor incluye `userId`, `businessId`, `channel: "web"` y `sessionId` UUID. Ninguna cabecera de identidad ni un objeto del navegador constituyen una sesión válida. R1/R2 implementan `ChatService` y `DistributorService` con los contratos compartidos.
 
-Al desactivar mocks sin una sesión verificada, las rutas devuelven 401. Sin servicios conectados, una sesión verificada recibe 503. Las cookies de demo nunca se aceptan por sí mismas en modo real. La app no implementa login, prompts, contabilidad, Bedrock, Meta ni migraciones.
+Al desactivar mocks sin una sesión verificada, las rutas web devuelven 401. Sin servicios web conectados, una sesión verificada recibe 503. Las cookies de demo nunca se aceptan por sí mismas en modo real. El login web sigue pendiente de montar; los servicios de dominio y la ruta WhatsApp reales se integran por separado.
+
+## 5. Webhook real de Infobip
+
+La ruta `POST /api/webhooks/infobip` usa `createRole2Service` con Supabase privilegiado de servidor. Es independiente de `MOCK_MODE`: nunca usa la sesión o servicios de la demo web. Solo se habilita con `INFOBIP_WEBHOOK_ENABLED=true`.
+
+1. Publicar los cambios de código/migraciones en el repositorio del despliegue. Revisar y aplicar las migraciones hasta 007 en la base alojada usada por la aplicación; las verificaciones locales no las despliegan automáticamente. Usar `npx supabase db push --dry-run --remote` para revisar el destino antes de aplicar mediante el responsable de migraciones.
+2. Configurar las variables de `.env.example`: `SUPABASE_URL` (o `NEXT_PUBLIC_SUPABASE_URL`), `SUPABASE_SERVICE_ROLE_KEY`, `INFOBIP_BASE_URL`, `INFOBIP_API_KEY`, `INFOBIP_WHATSAPP_SENDER` (dígitos sin '+'), `INFOBIP_WEBHOOK_USERNAME`, `INFOBIP_WEBHOOK_PASSWORD` (mínimo 24 caracteres) e `INFOBIP_ONBOARDING_SECRET` (mínimo 32 bytes). Mantener la clave de continuaciones estable entre instancias. No usar claves públicas para operaciones de servidor.
+3. Habilitar `INFOBIP_WEBHOOK_ENABLED=true` y crear un deployment con esas variables. Sin habilitación/configuración válida, la ruta devuelve 503 y no simula ventas.
+4. En Infobip configurar el mismo perfil Basic y la URL HTTPS real `<dominio-del-deployment>/api/webhooks/infobip` para mensajes entrantes del remitente funcional. Comprobar el enrutamiento de mensajes libres; no basta la palabra clave de activación del número de prueba. Los campos y el perfil deben contrastarse con un evento real de esa cuenta.
+5. Probar desde un teléfono permitido: alta explícita, venta con presentación, resumen, confirmación y consulta. Verificar filas en `r2_events`, `whatsapp_sale_drafts`, `sales`, `sale_items` y `products`. Para gastos: `r2_expense_drafts` y `expenses`. `whatsapp_inbound_events` es el registro de metadatos anterior; el webhook actual utiliza `r2_events` como almacenamiento durable.
+
+El cuerpo se limita a 256 KiB, incluso sin Content-Length. Se conserva la autenticación del proveedor y no se exige cookie web. El perfil sin credenciales válidas recibe 401; payload inválido recibe 400/415/422; fallo técnico reintentable recibe 503. Los errores conocidos de negocio generan una explicación WhatsApp durable y HTTP 200 después de enviarla. No anunciar éxito antes del efecto de dominio o del envío aceptado por el proveedor.
+
+El procesamiento usa leases de 60 segundos y respuesta persistida antes de enviarla. Una caída de red puede repetir una respuesta, pero la clave del borrador evita duplicar ventas. Los mensajes largos se dividen por líneas. Todavía no existe un worker de barrido/renovación de leases: mantener este camino de texto acotado y desacoplar futuras tareas de IA lenta. La retención/limpieza de eventos y sesiones debe configurarse operativamente; los registros vencidos no se borran automáticamente.
+
+Prueba integrada de servidor y base local, sin mensajes reales:
+
+```sh
+python3 scripts/check-role2-local.py
+```
+
+Las migraciones 001–007 ya están aplicadas en `microai-dev`; el dry-run quedó sin pendientes y la aceptación SQL remota pasó con rollback de fixtures. Se reproduce con `python3 scripts/check-role1-database.py --remote-ref hfcetxrktdorebepttof`. La URL pública, la configuración de credenciales del despliegue y el intercambio real de mensajes siguen sin verificarse.

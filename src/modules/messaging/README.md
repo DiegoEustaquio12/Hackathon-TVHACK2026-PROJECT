@@ -1,6 +1,6 @@
 # Integración R2
 
-`createRole2Service(config)` en `orchestration/service.ts` compone Infobip, conversación, alta, intérprete real R1, borradores/versiones y persistencia Supabase. Devuelve `handleInfobipWebhook({ rawBody, headers })` -> `{status, body}`. R3 monta HTTPS conservando el cuerpo, con límites antes de leerlo. No hay ruta pública creada por R2.
+`createRole2Service(config)` compone Infobip, conversación, alta, intérprete R1, borradores/versiones y persistencia Supabase. Devuelve `handleInfobipWebhook({ rawBody, headers })` -> `{status, body}`. Ya está montado bajo `POST /api/webhooks/infobip`; configurar/habilitar y desplegar según `docs/DEPLOYMENT.md`. No depende de cookies ni mocks web.
 
 Configuración de servidor requerida: client Supabase privilegiado, baseUrl HTTPS *.api.infobip.com, apiKey, sender, webhookUsername, webhookPassword (24 caracteres mínimo), onboardingSecret (32 bytes mínimo). Sin valores por defecto. Configurar el mismo perfil Basic en Infobip; no es firma Meta. Mantener secretos fuera de Git/logs. Ventana de texto de 24 horas; las plantillas requieren aprobación y consentimiento por parte del llamador.
 
@@ -14,7 +14,7 @@ Configuración de servidor requerida: client Supabase privilegiado, baseUrl HTTP
 
 ## Persistencia entregada para revisión R1
 
-`auth/storage/role2.sql` es una propuesta aditiva que R1 debe revisar y convertir en la siguiente migración. No se aplicó a ninguna base. Crea tablas privadas y funciones para claims con leases de 60 segundos, payload/respuesta durable, comparación de identidad, fencing, canje atómico de enlaces y sesiones. Requiere service_role; anon/authenticated no pueden acceder. R1 debe acordar retención/borrado de payloads por contener mensajes.
+La propuesta se incorporó a `supabase/migrations/202611140007_role2_durable_storage.sql`, aplicada y probada en local. `auth/storage/role2.sql` es solo un puntero; no aplicarlo aparte. Incluye tablas privadas para eventos durables, leases/fencing, sesiones/enlaces y propuestas cancelables de gastos. Falta aplicar al entorno alojado y configurar retención operativa.
 
 `createSupabaseProcessingStore` usa esas funciones; `createDurableProcessing` persiste respuesta antes de enviarla y reproduce respuestas guardadas ante reintentos. Claims ocupados o errores retornan 503. El procesamiento debe terminar antes de vencer el lease; recuperación se activa al reenviar el evento. No hay worker de barrido autónomo aún. No garantiza exactamente una respuesta WhatsApp ante fallos de red. Los efectos de ventas se deduplican por borrador en R1.
 
@@ -22,6 +22,16 @@ Configuración de servidor requerida: client Supabase privilegiado, baseUrl HTTP
 
 ## Verificación y pendientes
 
-Pruebas en `tests/role2*.test.ts`: parser/autenticación, venta confirmada, cambio/versionado de precios, alta firmada/expirada/remitente ajeno, replay y sesiones. Intérprete R1 real probado con catálogo fixture. SQL Supabase nuevo pendiente de ejecución y pruebas de concurrencia por R1. HTTP/login público, enrutamiento Infobip, consentimiento y WhatsApp real pendientes de R3/configuración de cuenta. Audio, imágenes, reportes, gastos y botones quedan fuera de P0 texto.
+`npm run validate` comprueba tipos, lint y pruebas unitarias. `python3 scripts/check-role2-local.py` ejecuta la prueba opt-in con Supabase real local y solo el HTTP saliente Infobip simulado: claims/confirmaciones simultáneas, replay, precios y gasto cancelado. El SQL adicional está en `supabase/checks/role2-storage.sql`. Hay reportes y gastos de texto integrados; pendientes de configuración/despliegue, WhatsApp real, login web, audio/imágenes y botones nativos.
+
+Las selecciones usan `ELEGIR <token> <opción>` y conservan texto/clave originales y decisiones por renglón. No filtrar todo el catálogo al elegir una presentación. El token se muestra una sola vez y las respuestas largas se dividen en mensajes de hasta 4096 caracteres.
+
+Gastos: se persiste la propuesta antes de pedir confirmación. `CANCELAR GASTO <token>` revoca una propuesta; `CANCELAR GASTO` revoca todas las pendientes del negocio. Una confirmación antigua nunca registra un gasto cancelado. No revierte gastos confirmados.
+
+Errores de negocio como `OUT_OF_STOCK`, `DRAFT_EXPIRED` y `EXPENSE_DRAFT_CANCELLED` se convierten en explicaciones guardadas y enviadas al comerciante. Fallos de base/proveedor permanecen reintentables, sin exponer mensajes internos.
 
 Fuentes del adaptador: https://www.infobip.com/docs/developer-resources/api-fundamentals/webhooks ; https://www.infobip.com/docs/tutorials/send-an-interactive-product-message-with-whatsapp-api ; https://github.com/infobip/infobip-api-java-client/blob/master/whatsapp.md . El parser usa esquema legacy `results[].{messageId,from,to,receivedAt,message:{type,text}}`; contrastar con evento real de la cuenta antes de habilitar producción.
+
+## Puerto de audio R1
+
+`createRole2Service` acepta `audio: {reader, transcriber}`. El transcriptor OpenAI con `gpt-transcribe` y la preparación por actor están implementados; ver `docs/audio-transcription.md`. El evento interno admite `kind: 'audio'` con referencia privada. El parser Infobip público conserva medios como `unsupported` hasta contrastar un evento real e implementar el lector/descarga segura; no confiar en un storageKey enviado externamente. Las confirmaciones habladas nunca ejecutan comandos.

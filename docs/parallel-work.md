@@ -8,12 +8,19 @@ Leer esta guía y [los contratos](integration-contracts.md). Después continuar 
 
 | Parte | Estado y evidencia | Pendiente |
 | --- | --- | --- |
+<<<<<<< HEAD
 | Datos / R1 | Migraciones 001–006 aplicadas localmente; ventas/borradores, alta, catálogo estructurado, edición protegida, parser de texto, gastos y reporte diario | Conectar conversaciones/paneles R2/R3; IA y medios |
 | Infobip / R2 | El plan recibido reporta un envío real recibido por el destinatario | Adaptador, autenticación del webhook, entrada real y conversación automática |
 | HTTP / R3 | Esqueleto Next.js con páginas iniciales | Contratos TS, endpoint público, paneles y despliegue |
 | Supabase alojado | Repositorio vinculado al proyecto Supabase alojado existente | No asumir migraciones locales desplegadas allí |
+=======
+| Datos / R1 | Migraciones 001–007 aplicadas localmente y en microai-dev; dominio y permisos SQL comprobados | Conexión de paneles, IA y medios |
+| Infobip / R2 | Adaptador, autenticación, alta, ventas/gastos/reportes, selecciones por renglón y cancelación persistente | Configurar perfil real y comprobar entrada/respuesta por WhatsApp |
+| HTTP / R3 | Demo web, contratos y ruta real Infobip compilada | Credenciales, URL pública y despliegue verificado |
+| Supabase alojado | `microai-dev` migrado hasta 007; aceptación SQL con rollback aprobada | Conectar despliegue y comprobar recorrido externo |
+>>>>>>> 953ecda3a02f47475361d2471ee230b03eb5ea03
 
-Varios archivos de `src/`, migraciones y comprobaciones siguen sin seguimiento de Git: incluirlos en los PRs. Documentar una función no sustituye entregar su implementación.
+La entrega correctiva se guardó en el commit local `42babeb`; aún no se ha publicado mediante push. Documentar una función no sustituye entregar su implementación.
 
 ## Trabajo inmediato en paralelo
 
@@ -52,6 +59,8 @@ El parser de **payload Infobip** es de R2; el intérprete de **ventas del comerc
 - **D — Demo WhatsApp:** “Vendí 3 cocas y 2 panes” -> resumen $90 -> confirmar -> dos artículos y descuento -> ventas del día. Separar resultados de mocks y pruebas reales.
 
 Si Infobip no recibe mensajes, continuar A/B y documentar el bloqueo. Una demo web no demuestra recepción WhatsApp.
+
+El hito B está comprobado contra Supabase local con proveedor saliente simulado: `python3 scripts/check-role2-local.py`. Incluye claims y confirmaciones simultáneas, reintentos, cambios de precio y cancelación de gastos. No sustituye el hito C de WhatsApp real.
 
 ## Reglas comunes
 

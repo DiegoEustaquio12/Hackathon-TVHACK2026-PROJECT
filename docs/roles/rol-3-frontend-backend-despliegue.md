@@ -1,36 +1,42 @@
 # Rol 3 — Frontend, backend HTTP y despliegue
 
-## Objetivo
+## Objetivo actual
 
-Construir interfaces, exponer contratos HTTP y mantener ejecutable e integrable la aplicación.
+Entregar el transporte público de Infobip y los paneles de Knectan. WhatsApp es el canal principal del comerciante; la web sirve como apoyo. Leer [guía paralela](../parallel-work.md) y [contratos](../integration-contracts.md).
 
-## Responsabilidades
+## Trabajo inmediato en paralelo
 
-- Construir chatbot web y panel de distribuidores.
-- Crear formularios accesibles para capturar texto, audio e imagen.
-- Implementar rutas API de Next.js con validación de request/response.
-- Mantener contratos compartidos y mocks para permitir trabajo paralelo.
-- Configurar entorno, build/CI y despliegue en Vercel.
-- Mantener un modo mock local para que la interfaz avance antes de las integraciones externas.
+1. Materializar en `src/contracts/` los tipos documentados de Actor, mensaje, interpretación y errores. Mantener mocks compatibles para que R1/R2 no esperen al despliegue.
+2. Preparar `POST /api/webhooks/infobip` con handler inyectable, límite de tamaño y lectura única del cuerpo. Entregar bytes/cabeceras originales a R2; autenticación y clasificación pertenecen a R2. Probar con handler mock mientras llega el real.
+3. Publicar HTTPS en Vercel y entregar URL/método/estado a R2 para configurar enrutamiento. Diferenciar ruta montada de integración real; el mock público no puede fingir efectos de venta.
+4. Actualizar `.env.example` con nombres de variables acordados con R2, sin secretos. El cliente privilegiado Supabase vive en servidor; la app alojada apunta a `microai-dev`, no a la base local.
+5. Implementar panel de productos con precio/stock editables fuera de la venta y luego reportes. Usar catálogo fixture mientras R1 entrega consultas; auth mock únicamente en desarrollo local mientras R2 entrega sesiones.
+6. Reemplazar mocks por adaptadores reales. Coordinar con R1 las migraciones de la base alojada antes del tráfico real; una persona designada las despliega.
 
 ## Carpetas a cargo
 
-- `app/`
-- `components/`
-- `src/contracts/` (coordina cambios con los otros roles)
-- `src/modules/http/`
-- Configuración raíz y documentación de despliegue.
+`app/`, `components/`, `src/modules/http/`, `src/contracts/`, configuración raíz, dependencias/lockfile, `.env.example`, despliegue y este documento. Coordinar cambios a README y guías compartidas. No editar migraciones/repositorios R1 ni implementar otro adaptador Infobip/orquestador.
 
-## Contratos de integración
+## UI y reglas de integración
 
-Las rutas validan payloads (Zod), obtienen el actor desde sesión verificada y no confían en un `businessId` enviado por el navegador. Invocan servicios de orquestación y dominio mediante interfaces.
+- Next.js, TypeScript y CSS Modules. Globales solo para reset/tokens. Aplicar las skills visuales disponibles al implementar pantallas.
+- Identidad desde sesión verificada; `businessId` del navegador no autoriza acceso. R2 implementa identidad y R3 conecta sesión/transporte.
+- Precios de catálogo, sin edición durante venta; mostrar agotados/errores de stock y evitar venta parcial.
+- MXN en centavos enteros, fechas ISO UTC, errores HTTP `{ code, message }` sin filtrar detalles internos.
+- Auth mock y claves privilegiadas nunca expuestas en producción. Si falla autenticación, rechazar, no aceptar negocios arbitrarios.
+- Acordar códigos HTTP con R2: éxito tras procesamiento o aceptación durable. Registrar metadatos del evento R1 no garantiza cola durable.
 
-Las cantidades monetarias se representan como enteros en centavos MXN (`*_cents`); timestamps ISO UTC; errores como `{ code, message }`.
+## Entregables
 
-## No cubre
-
-Prompts/modelos, políticas de WhatsApp, esquema/migraciones de base de datos ni lógica contable.
+- PR temprano de contratos TS, fixture/mocks y ejemplo del handler.
+- Ruta HTTP con verificación de entrada, errores y autenticación delegada.
+- URL pública real, variables necesarias y procedimiento reproducible de despliegue.
+- Build y evidencia del entorno usado, sin secretos ni mensajes completos en logs.
 
 ## Criterio de entrega
 
-La demo web permite recorrer las pantallas contra mocks y desplegarse sin depender de Bedrock o credenciales de Meta.
+El endpoint entrega un evento autenticado por R2 al orquestador. Reportar pruebas mock aparte de recepción WhatsApp real. Los paneles editan solo productos del negocio autenticado y el build pasa. Antes de habilitar cambios de precio durante una confirmación, coordinar detección/nuevo resumen con R1/R2.
+
+## Después del recorrido principal
+
+Panel de distribuidores, pedidos, acceso web complementario y mejoras visuales. No retrasar la URL pública requerida para WhatsApp por terminar esas pantallas.

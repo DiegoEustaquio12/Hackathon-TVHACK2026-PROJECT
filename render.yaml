@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: knectan-whatsapp-test
+    runtime: node
+    plan: free
+    region: oregon
+    branch: codex/whatsapp-deploy
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MOCK_MODE
+        value: "true"
+      - key: DEFAULT_BUSINESS_ID
+        value: biz_knectan_demo_001
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: INFOBIP_WEBHOOK_ENABLED
+        value: "true"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: INFOBIP_BASE_URL
+        sync: false
+      - key: INFOBIP_API_KEY
+        sync: false
+      - key: INFOBIP_WHATSAPP_SENDER
+        sync: false
+      - key: INFOBIP_WEBHOOK_USERNAME
+        sync: false
+      - key: INFOBIP_WEBHOOK_PASSWORD
+        sync: false
+      - key: INFOBIP_ONBOARDING_SECRET
+        sync: false

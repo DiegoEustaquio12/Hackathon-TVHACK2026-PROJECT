@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { createContinuations } from '../auth/continuations';
 import type { InboundMessage } from '../messaging/contracts';
 import type { InterpretationResult } from '../interpretation/types';
-const contextSchema = z.object({ originalText: z.string().max(2000), operationKey: z.string().min(1).max(200),
+const contextSchema = z.object({ receiptId:z.string().uuid().optional(), originalText: z.string().max(2000), operationKey: z.string().min(1).max(200),
   selections: z.record(z.string().regex(/^\d{1,2}$/), z.string().uuid()).default({}) });
 const state = contextSchema.extend({ lineIndex: z.number().int().min(0).max(99), options: z.array(z.string().uuid()).min(1).max(5) });
 export type SelectionContext = z.infer<typeof contextSchema>;
@@ -23,7 +23,7 @@ export function createChoices(secret: string) {
       const value = state.parse(tokens.read(match[1], message.from, 'product'));
       const productId = value.options[Number(match[2])-1];
       if (!productId) throw new Error('Invalid selection');
-      return { originalText: value.originalText, operationKey: value.operationKey,
+      return { receiptId:value.receiptId, originalText: value.originalText, operationKey: value.operationKey,
         selections: { ...value.selections, [String(value.lineIndex)]: productId } };
     },
   };

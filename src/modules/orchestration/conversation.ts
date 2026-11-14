@@ -48,7 +48,7 @@ export function createConversation(deps: ConversationDependencies) {
     }
     if(message.kind==='image') {
       if(!deps.receipts||!message.image) return 'La lectura de tickets todavía no está habilitada. Escribe los datos de la operación.';
-      return deps.receipts.review(actor,message.image);
+      return deps.receipts.review(actor,message.image,message.receivedAt);
     }
     const fromAudio = message.kind === 'audio';
     let notice = '';
@@ -61,8 +61,12 @@ export function createConversation(deps: ConversationDependencies) {
       notice = `Transcripción: «${prepared.text}»\n`;
     } else if (message.kind !== 'text') return 'Por ahora puedo registrar ventas por texto. Escribe los productos y cantidades.';
     const text = message.text!.trim();
-    const receiptReply = !fromAudio ? deps.receipts?.command(actor,message) : null;
-    if(receiptReply) return receiptReply;
+    const receiptReply = !fromAudio ? await deps.receipts?.command(actor,message) : null;
+    if(typeof receiptReply==='string') return receiptReply;
+    if(receiptReply?.kind==='expense') {
+      if(!deps.accounting) return 'Los gastos no están disponibles. Todavía no se registró ninguna operación.';
+      return deps.accounting.propose({...message,providerMessageId:`receipt:${receiptReply.reviewId}`,receivedAt:receiptReply.occurredAt},receiptReply.expense);
+    }
     const accountingReply = !fromAudio ? await deps.accounting?.command(message) : null;
     if (accountingReply) return accountingReply;
     const action = /^(confirmar|cancelar)\s+([a-f0-9-]{36})(?:\s+([1-9][0-9]{0,8}))?$/i.exec(text);
@@ -79,14 +83,22 @@ export function createConversation(deps: ConversationDependencies) {
     let result: InterpretationResult;
     let operationKey = `infobip:${message.providerMessageId}`;
     let selectionContext: SelectionContext | undefined;
-    if (!fromAudio && /^ELEGIR\b/i.test(text)) {
+    if(receiptReply?.kind==='sale') {
+      result=receiptReply.result;selectionContext=receiptReply.context;
+      operationKey=selectionContext.operationKey;notice=receiptReply.notice;
+    } else if (!fromAudio && /^ELEGIR\b/i.test(text)) {
       let selection;
       try { selection = deps.choices?.read(message); }
       catch { return 'La selección venció o no es válida. Escribe la venta completa otra vez.'; }
-      if (!selection || !deps.interpretSelection) return 'Escribe la venta completa con la presentación de cada producto.';
-      result = await deps.interpretSelection(actor, selection.originalText, selection.selections);
-      operationKey = selection.operationKey;
-      selectionContext = selection;
+      if (!selection || (!selection.receiptId&&!deps.interpretSelection)) return 'Escribe la venta completa con la presentación de cada producto.';
+      if(selection.receiptId) {
+        if(!deps.receipts) return 'La revisión de tickets no está disponible.';
+        const proposal=await deps.receipts.select(actor,selection.receiptId,selection.selections);
+        result=proposal.result;operationKey=proposal.context.operationKey;selectionContext=proposal.context;notice=proposal.notice;
+      } else {
+        result = await deps.interpretSelection!(actor, selection.originalText, selection.selections);
+        operationKey = selection.operationKey;selectionContext = selection;
+      }
     } else result = await deps.interpret(actor, { text });
     if (result.clarificationOptions?.length && deps.choices) return notice + deps.choices.prompt(message, result, selectionContext);
     if (result.clarification) return notice + result.clarification;

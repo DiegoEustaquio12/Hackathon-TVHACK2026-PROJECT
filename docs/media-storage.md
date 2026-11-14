@@ -70,3 +70,7 @@ python3 scripts/check-role2-local.py
 Prueba integrada local con Storage/PostgreSQL/Auth reales: guardar/leer audio e imagen, reintentos, cargas simultáneas, pertenencia al negocio, rechazo de lectura pública, rechazo de clientes anon y authenticated, borrador sin efectos y posterior confirmación idempotente. Se eliminan archivos, metadatos y usuario Auth de prueba. OpenAI y HTTP saliente de Infobip están simulados; el fixture OGG solo tiene firma de contenedor y no prueba reproducción/transcripción acústica.
 
 Fuentes: [descargas privadas](https://supabase.com/docs/guides/storage/serving/downloads) y [control de acceso](https://supabase.com/docs/guides/storage/security/access-control).
+
+## Referencias de tickets revisados
+
+009 agrega receipt_reviews con FK compuesta a business_media y clasificación por hash/negocio; 010 restringe escrituras del snapshot. Aplicadas local/remoto. La limpieza de metadatos debe respetar esas referencias y la idempotencia de propuestas; no hay retención automática nueva. Ver [tickets](receipt-interpretation.md).

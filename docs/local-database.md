@@ -63,3 +63,7 @@ Se comprobó en local y remoto. Es una prueba SQL secuencial, no una prueba del 
 Supabase Storage almacenará audios e imágenes del MVP. 008 crea buckets privados y `business_media`; está aplicada y comprobada localmente y en microai-dev. La prueba local integrada ya usa Storage y Auth reales además de PostgreSQL; simula OpenAI y el envío Infobip. Ver [media-storage.md](media-storage.md). No insertar/borrar objetos directamente por SQL: usar la API de Storage.
 
 Actualización multimedia: 008 ya está aplicada y comprobada en microai-dev. Descarga Infobip AUDIO/IMAGE y primera extracción/revisión de tickets implementadas, con flags desactivados por defecto. Antes de producción faltan credenciales, HTTPS/enrutamiento y comprobar evento/redirecciones reales. La prueba local usa Supabase DB/Storage/Auth reales y HTTP externos simulados; no equivale a WhatsApp real. Ver [tickets](receipt-interpretation.md).
+
+## Revisiones persistentes de tickets — 009–010
+
+Aplicadas localmente y en microai-dev. Guardan snapshots, clasificación por negocio y operaciones estables de propuestas. 010 retira escrituras directas al snapshot que Supabase puede conceder automáticamente a service_role. Se comprueban con `supabase/checks/receipt-reviews.sql` (rollback) y ahora forman parte de `scripts/check-role1-database.py`. Ver [tickets](receipt-interpretation.md).

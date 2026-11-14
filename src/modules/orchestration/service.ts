@@ -10,6 +10,8 @@ import { basicWebhookAuthenticator, InfobipMessagingProvider } from '../messagin
 import { createDurableProcessing, type ProcessingStore } from '../messaging/processing';
 import { createAudioPreparation } from '../interpretation/audio';
 import { createReceiptPreparation, type ReceiptExtractor } from '../interpretation/receipts';
+import { createReceiptReviewRepository } from '../data/receipt-reviews';
+import { getBusinessCatalogue } from '../data/businesses';
 import { createReceiptReview } from './receipts';
 import type { InboundMessage, WhatsAppActor } from '../messaging/contracts';
 import type { AudioTranscriber, TrustedAudioReader } from '../media/audio';
@@ -24,7 +26,11 @@ export function createRole2Service(config: {
 }) {
   const conversation = createConversation({ ...createConversationRepositories(config.client),
     ingestMedia:config.ingestMedia,
-    receipts:config.receipts?createReceiptReview(config.onboardingSecret,createReceiptPreparation(config.receipts)):undefined,
+    receipts:config.receipts?createReceiptReview(config.onboardingSecret,{
+      prepare:createReceiptPreparation(config.receipts),repository:createReceiptReviewRepository(config.client),
+      catalogue:async actor=>{const data=await getBusinessCatalogue(config.client,actor.verifiedSender);
+        if(data.business.id!==actor.businessId) throw new Error('Identity changed');return data.products;},
+    }):undefined,
     prepareAudio: config.audio ? createAudioPreparation(config.audio) : undefined,
     accounting: createSupabaseAccounting(config.client, config.onboardingSecret), choices: createChoices(config.onboardingSecret),
     onboard: createSupabaseOnboarding(config.client, config.onboardingSecret) });

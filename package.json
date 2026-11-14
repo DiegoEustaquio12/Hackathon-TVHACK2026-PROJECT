@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "validate": "npm run typecheck && npm run lint && npm test"
+    "validate": "npm run typecheck && npm run lint && npm test",
+    "dev:local": "MOCK_MODE=true LOCAL_CHAT_MODE=true next dev --hostname 127.0.0.1"
   },
   "engines": {
     "node": ">=22.0.0 <25"

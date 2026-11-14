@@ -1,0 +1,9 @@
+import { FlatCompat } from "@eslint/eslintrc";
+import { fileURLToPath } from "node:url";
+
+const compat = new FlatCompat({ baseDirectory: fileURLToPath(new URL(".", import.meta.url)) });
+const config = [
+  { ignores: ["next-env.d.ts", ".next/**", "node_modules/**", ".agents/**", ".codex/**", ".taste-skill/**", "test-results/**", "playwright-report/**"] },
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
+];
+export default config;

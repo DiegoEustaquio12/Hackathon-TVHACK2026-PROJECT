@@ -5,13 +5,16 @@ import { audioMimeTypes, chatInputSchema, historySchema, imageMimeTypes, MAX_MED
 import { api, errorMessage, jsonRequest } from "./api-client";
 import { Icon } from "./icon";
 import { BrandLogo } from "./brand-logo";
-import ui from "./workspace.module.css";
+import Link from "next/link";
 import styles from "./chat.module.css";
 
 const time = (value: string) => new Intl.DateTimeFormat("es-MX", { hour: "2-digit", minute: "2-digit" }).format(new Date(value));
 type Attachment = { name: string; data_url: string };
 
-export function Chat({ mock }: { mock: boolean }) {
+export function Chat({ mock, local = false }: { mock: boolean; local?: boolean }) {
+  const [tray, setTray] = useState(false);
+  const [info, setInfo] = useState(false);
+  const [emojis, setEmojis] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [kind, setKind] = useState<"text" | "audio" | "image">("text");
   const [text, setText] = useState(""); const [alt, setAlt] = useState("");
@@ -45,11 +48,11 @@ export function Chat({ mock }: { mock: boolean }) {
   }, []);
   useEffect(() => { if (list.current) list.current.scrollTop = list.current.scrollHeight; }, [messages, busy]);
 
-  async function selectFile(file?: File) {
+  async function selectFile(file?: File, selectedKind = kind) {
     const current = ++selection.current;
     setAttachment(null); setError(""); setStatus("");
     if (!file) return;
-    const accepted: readonly string[] = kind === "image" ? imageMimeTypes : audioMimeTypes;
+    const accepted: readonly string[] = selectedKind === "image" ? imageMimeTypes : audioMimeTypes;
     if (!accepted.includes(file.type) || file.size === 0 || file.size > MAX_MEDIA_BYTES) {
       setError("Elige un archivo válido de hasta 2 MB en uno de los formatos indicados."); if (fileInput.current) fileInput.current.value = ""; return;
     }
@@ -67,7 +70,7 @@ export function Chat({ mock }: { mock: boolean }) {
     if (fileInput.current) fileInput.current.value = "";
   }
   async function startRecording() {
-    setError(""); setReading(true); setAttachment(null);
+    changeKind("audio"); setTray(true); setError(""); setReading(true); setAttachment(null);
     try {
       const tracks = await navigator.mediaDevices.getUserMedia({ audio: true });
       if (!mounted.current) { tracks.getTracks().forEach(t => t.stop()); return; }
@@ -84,7 +87,7 @@ export function Chat({ mock }: { mock: boolean }) {
         if (!mounted.current) return;
         setRecording(false); setReading(false);
         if (tooLarge || size > MAX_MEDIA_BYTES) { setError("La grabación supera 2 MB. Graba un audio más corto."); return; }
-        void selectFile(new File(chunks, `grabacion.${mimeType.split("/")[1]}`, { type: mimeType }));
+        void selectFile(new File(chunks, `grabacion.${mimeType.split("/")[1]}`, { type: mimeType }), "audio");
       };
       media.start(500); setRecording(true); setStatus("Grabando. Detén la grabación cuando termines; el límite es un minuto.");
       timer.current = setTimeout(() => { if (media.state === "recording") media.stop(); }, 60_000);
@@ -106,40 +109,64 @@ export function Chat({ mock }: { mock: boolean }) {
       setMessages(current => [...current.filter(m => !result.messages.some(next => next.id === m.id)), ...result.messages].slice(-20));
       setText(""); setAttachment(null); setAlt(""); pending.current = null;
       if (fileInput.current) fileInput.current.value = "";
-      setStatus("Mensaje enviado. Hay una nueva respuesta del asistente.");
+      setTray(false); setKind("text"); setStatus("Mensaje enviado. Hay una nueva respuesta del asistente.");
     } catch (e) { setError(errorMessage(e)); }
     finally { setBusy(false); }
   }
   const disabled = loading || busy || recording || reading;
-  return <>
-    <div className={ui.heading}><div><h1>Asistente para tu comercio</h1><p>Envía un mensaje, una foto o un audio desde un solo lugar.</p></div></div>
-    <div className={styles.layout}>
-      <section className={styles.conversation} aria-label="Conversación con el asistente">
-        <header className={styles.conversationHeader}><BrandLogo compact /><div><h2>Asistente Knectan</h2><p>{mock ? "Respuestas simuladas · Sin operaciones reales" : "Conversación de tu comercio"}</p></div></header>
-        <div className={styles.messages} ref={list} role="log" aria-label="Historial de conversación" aria-live="polite" aria-relevant="additions" aria-busy={loading} tabIndex={0}>
-          {loading ? <p role="status">Cargando conversación…</p> : messages.length === 0 ? <div className={styles.welcome}><div className={styles.avatar}><Icon name="chat" /></div><h2>Tu próxima conversación empieza aquí</h2><p>Escribe lo que necesitas o adjunta un archivo. {mock && "Puedes recorrer el flujo con respuestas de demostración."}</p></div>
-            : messages.map(message => <article className={styles.message} data-role={message.role} key={message.id}><strong>{message.role === "user" ? "Tú" : "Knectan"}</strong><MessageContent content={message.content} /><time dateTime={message.created_at}>{time(message.created_at)}</time></article>)}
-          {busy && <p role="status">Enviando mensaje…</p>}
+  return <main id="main-content" className={styles.screen}>
+    <div className={styles.phone}>
+      <header className={styles.conversationHeader}>
+        <Link href="/distribuidores" className={styles.back} aria-label="Volver al espacio de trabajo"><ChatIcon name="back" /></Link>
+        <div className={styles.contact}>
+          <button type="button" className={styles.avatar} onClick={() => setInfo(!info)} aria-expanded={info} aria-label="Información de Knectan"><BrandLogo compact /></button>
+          <div><h1 className={styles.name}>Knectan <span className={styles.brandMark} role="img" aria-label="Asistente del proyecto"><ChatIcon name="check" /></span></h1><span className={styles.subtitle}>{local ? "Tu asistente · En este equipo" : mock ? "Cuenta de demostración" : "Asistente de tu comercio"}</span></div>
         </div>
-        <form className={styles.composer} onSubmit={send} aria-busy={busy}>
-          <fieldset className={styles.types} disabled={disabled}><legend>Tipo de mensaje</legend>{(["text", "audio", "image"] as const).map(value => <label key={value}><input type="radio" name="kind" value={value} checked={kind === value} onChange={() => changeKind(value)} />{value === "text" ? "Texto" : value === "audio" ? "Audio" : "Imagen"}</label>)}</fieldset>
+        <button type="button" className={styles.iconButton} aria-label="Información del chat" onClick={() => setInfo(!info)} aria-expanded={info}><ChatIcon name="more" /></button>
+      </header>
+      {info && <section className={styles.info} aria-label="Acerca de este chat"><h2>Tu chat con Knectan</h2><p>{local ? "Respaldo local sin WhatsApp. Guarda mensajes, ventas y gastos confirmados en este equipo. Catálogo de prueba: Coca-Cola 600 ml y pan dulce. El registro usa la hora de Ciudad de México." : mock ? "Modo demostración: las respuestas son simuladas y no registran operaciones reales." : "El historial está asociado a tu sesión del comercio."}</p><p>Fotos y audios de hasta 2 MB. La grabación requiere permiso del micrófono. No se usa el servicio de Meta.</p><button type="button" onClick={() => setInfo(false)}>Cerrar información</button></section>}
+      <div className={styles.messages} ref={list} role="log" aria-label="Historial de conversación" aria-live="polite" aria-relevant="additions" aria-busy={loading} tabIndex={0}>
+        {messages.length === 0 && <div className={styles.day}>Hoy</div>}
+        <p className={styles.localNotice}><ChatIcon name="lock" />{local ? "Este chat funciona sin WhatsApp. Los datos se guardan en este equipo." : mock ? "Chat de demostración. Las respuestas y operaciones son simuladas." : "Un espacio para conversar con tu comercio."}</p>
+        {loading ? <p className={styles.loading} role="status">Cargando conversación…</p> : messages.length === 0 ? <div className={`${styles.message} ${styles.welcome}`}><p>Hola, soy <b>Knectan</b>.</p><p>{local ? "Tu comercio sigue conectado, incluso sin WhatsApp. Puedes registrar ventas, gastos y consultar tu día desde aquí." : "Aquí puedes escribir, compartir una foto o enviar una nota de voz."}</p><p>{local ? "Escribe «ayuda» para empezar." : "¿En qué te ayudo hoy?"}</p><time>{time(new Date().toISOString())}</time></div>
+          : messages.map((message, index) => <div className={styles.messageGroup} key={message.id}>
+            {(index === 0 || new Date(messages[index - 1].created_at).toDateString() !== new Date(message.created_at).toDateString()) && <div className={styles.date}>{new Intl.DateTimeFormat("es-MX", { weekday: "short", day: "numeric", month: "short" }).format(new Date(message.created_at))}</div>}
+            <article className={styles.message} data-role={message.role} aria-label={message.role === "user" ? "Mensaje tuyo" : "Mensaje de Knectan"}><MessageContent content={message.content} /><span className={styles.messageMeta}><time dateTime={message.created_at}>{time(message.created_at)}</time>{message.role === "user" && <span role="img" aria-label="Enviado" className={styles.ticks}><ChatIcon name="doubleCheck" /></span>}</span></article>
+          </div>)}
+        {busy && <div className={styles.typing} role="status">Knectan está escribiendo<span>…</span></div>}
+      </div>
+      <form className={styles.composer} onSubmit={send} aria-busy={busy}>
+        {tray && <div className={styles.attachmentPanel}>
+          <div className={styles.panelHeading}><span>Adjuntar al chat</span><button type="button" className={styles.iconButton} aria-label="Cerrar adjuntos" disabled={recording} onClick={() => { setTray(false); changeKind("text"); }}><ChatIcon name="close" /></button></div>
+          <fieldset className={styles.types} disabled={disabled}><legend className="sr-only">Tipo de mensaje</legend>{(["text", "audio", "image"] as const).map(value => <label key={value}><input type="radio" name="kind" value={value} checked={kind === value} onChange={() => changeKind(value)} />{value === "text" ? "Texto" : value === "audio" ? "Audio" : "Imagen"}</label>)}</fieldset>
           {kind !== "text" && <>
-            <div className={ui.field}><label htmlFor="media">{kind === "image" ? "Archivo de imagen" : "Archivo de audio"}</label><input ref={fileInput} id="media" type="file" accept={(kind === "image" ? imageMimeTypes : audioMimeTypes).join(",")} disabled={disabled} onChange={event => void selectFile(event.target.files?.[0])} aria-describedby="media-help chat-error" /><small id="media-help" className={ui.notice}>{kind === "image" ? "JPG, PNG o WebP" : "WebM, Ogg, MP3, MP4 o WAV"} · Máximo 2 MB</small></div>
-            {kind === "audio" && <div className={styles.record}>{canRecord && <button type="button" className={ui.button} disabled={loading || busy || reading} onClick={() => recording ? recorder.current?.stop() : void startRecording()}><Icon name="mic" />{recording ? "Detener grabación" : "Grabar audio"}</button>}<span className={ui.notice}>{canRecord ? "Hasta 1 minuto. Requiere permiso del micrófono." : "Puedes enviar audio desde un archivo."}</span></div>}
-            {attachment && (kind === "image" ? <><div className={ui.field}><label htmlFor="alt">Descripción de la imagen (obligatoria)</label><input id="alt" value={alt} maxLength={240} required disabled={disabled} onChange={e => setAlt(e.target.value)} aria-describedby="chat-error" /></div>{/* User-selected data URLs are validated by the shared schema. */}
+            <label className={styles.fileLabel} htmlFor="media">{kind === "image" ? "Archivo de imagen" : "Archivo de audio"}<small>{kind === "image" ? "JPG, PNG o WebP" : "WebM, Ogg, MP3, MP4 o WAV"} · Máximo 2 MB</small></label><input ref={fileInput} id="media" type="file" accept={(kind === "image" ? imageMimeTypes : audioMimeTypes).join(",")} disabled={disabled} onChange={event => void selectFile(event.target.files?.[0])} />
+            {kind === "audio" && canRecord && <button type="button" className={styles.record} disabled={loading || busy || reading} onClick={() => recording ? recorder.current?.stop() : void startRecording()}><Icon name="mic" />{recording ? "Detener grabación" : "Grabar audio"}</button>}
+            {attachment && (kind === "image" ? <><label htmlFor="alt">Descripción de la imagen (obligatoria)</label><input id="alt" value={alt} maxLength={240} required disabled={disabled} onChange={e => setAlt(e.target.value)} />
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img className={styles.preview} src={attachment.data_url} alt={alt || "Vista previa de la imagen seleccionada"} /></> : <audio controls src={attachment.data_url} aria-label="Vista previa del audio seleccionado" />)}
           </>}
-          <div className={ui.field}><label htmlFor="message">{kind === "text" ? "Tu mensaje" : "Mensaje adicional (opcional)"}</label><textarea id="message" value={text} onChange={e => setText(e.target.value)} required={kind === "text"} maxLength={2000} disabled={disabled} aria-describedby="chat-error" placeholder="Por ejemplo: quiero revisar mis pedidos" /></div>
-          <div id="chat-error" role="alert">{error && <div className={ui.error}>{error}{loading === false && messages.length === 0 && <button type="button" className={ui.button} onClick={() => void load()}>Recargar conversación</button>}</div>}</div>
-          <p className="sr-only" role="status" aria-live="polite">{status}</p>
-          <div className={styles.actions}><p>{mock ? "Demo temporal. Evita compartir datos personales." : "Revisa tu mensaje antes de enviarlo."}</p><button className={`${ui.button} ${ui.primary}`} disabled={disabled || (kind !== "text" && !attachment)} type="submit"><Icon name="send" />{busy ? "Enviando…" : "Enviar mensaje"}</button></div>
-        </form>
-      </section>
-      <aside className={styles.guide}><h2>Tres formas de conversar</h2><h3>Escribe tu mensaje</h3><p>Cuenta qué necesitas con tus propias palabras.</p><h3>Comparte una imagen</h3><p>Carga una foto y añade una descripción para que sea accesible.</p><h3>Envía un audio</h3><p>Graba desde el navegador o elige un archivo de tu dispositivo.</p><p className={styles.hint}>{mock ? "Esta demo confirma la recepción de tus mensajes. No transcribe audios, analiza imágenes ni guarda operaciones reales." : "El historial está asociado a tu sesión."}</p></aside>
+        </div>}
+        {emojis && <div className={styles.emojiPicker} role="group" aria-label="Elegir emoji">{["😊", "👍", "❤️", "🙌", "🎉", "✅", "👋", "🙏"].map(emoji => <button key={emoji} type="button" aria-label={`Añadir ${emoji}`} onClick={() => { setText(t => t + emoji); setEmojis(false); document.getElementById("message")?.focus(); }}>{emoji}</button>)}</div>} {/* taste-skill-ignore: selector de emojis solicitado para el chat de referencia. */}
+        {error && <div id="chat-error" className={styles.error} role="alert">{error}{!loading && messages.length === 0 && <button type="button" onClick={() => void load()}>Recargar conversación</button>}</div>}
+        {recording && <p className={styles.recording} role="status">Grabando audio · Máximo 1 minuto <button type="button" onClick={() => recorder.current?.stop()}>Detener</button></p>}
+        <div className={styles.composerRow}>
+          <button type="button" className={styles.iconButton} onClick={() => { setTray(!tray); setEmojis(false); }} disabled={disabled} aria-label="Adjuntar archivo" aria-expanded={tray}><ChatIcon name="plus" /></button>
+          <div className={styles.inputWrap}><label className="sr-only" htmlFor="message">Tu mensaje</label><textarea id="message" rows={1} value={text} onChange={e => setText(e.target.value)} required={kind === "text"} maxLength={2000} disabled={disabled} aria-describedby={error ? "chat-error" : undefined} placeholder="Mensaje" onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} /><button type="button" className={styles.iconButton} aria-label="Elegir emoji" aria-expanded={emojis} disabled={disabled} onClick={() => { setEmojis(!emojis); setTray(false); }}><ChatIcon name="smile" /></button></div>
+          <button type="button" className={`${styles.iconButton} ${styles.camera}`} disabled={disabled} aria-label="Adjuntar foto" onClick={() => { changeKind("image"); setTray(true); setEmojis(false); }}><ChatIcon name="camera" /></button>
+          {text.trim() || attachment || !canRecord ? <button className={styles.send} disabled={disabled} type="submit" aria-label="Enviar mensaje"><Icon name="send" /></button> : <button type="button" className={styles.send} disabled={loading || busy || reading} aria-label={recording ? "Detener grabación" : "Grabar nota de voz"} onClick={() => recording ? recorder.current?.stop() : void startRecording()}><Icon name="mic" /></button>}
+        </div>
+        <p className="sr-only" role="status" aria-live="polite">{status}</p>
+        <div className={styles.homeIndicator} />
+      </form>
     </div>
-  </>;
+  </main>;
 }
+const chatPaths = {
+  doubleCheck: "m1 12 4 4L15 6M10 15l2 2L23 6", back: "m15 5-7 7 7 7", plus: "M12 4v16M4 12h16", camera: "M4 7h3l2-3h6l2 3h3v13H4z M16 13a4 4 0 1 1-8 0 4 4 0 0 1 8 0", smile: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0M8 14s1.5 3 4 3 4-3 4-3M8 9h.01M16 9h.01", more: "M12 5h.01M12 12h.01M12 19h.01", close: "m6 6 12 12M6 18 18 6", lock: "M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4", check: "m7 12 3 3 7-7",
+};
+function ChatIcon({ name }: { name: keyof typeof chatPaths }) { return <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={chatPaths[name]} /></svg>; }
+
 function MessageContent({ content }: { content: ChatInput }) {
   return <>{content.kind === "image" && <>
     {/* eslint-disable-next-line @next/next/no-img-element */}

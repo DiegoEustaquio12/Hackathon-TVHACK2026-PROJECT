@@ -1,0 +1,3 @@
+-- Storage proposal incorporated into supabase/migrations/202611140007_role2_durable_storage.sql.
+-- This file is now a pointer only. Apply versioned migrations with Supabase CLI;
+-- do not run the original proposal separately or recreate its tables.

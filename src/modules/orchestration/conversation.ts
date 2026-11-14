@@ -1,13 +1,16 @@
+import type { InterpretationResult } from '../interpretation/types';
+import type { createAccounting } from './accounting';
+import type { createChoices } from './choices';
 import { z } from 'zod';
 import { draftSchema, type ConfirmationResult, formatPriceChangeNotice, quoteSchema } from '../data/sale-results';
 import type { InboundMessage, WhatsAppActor } from '../messaging/contracts';
 export type SaleItem = { product_id: string; quantity: number };
 export interface ConversationDependencies {
   resolveActor(sender: string): Promise<WhatsAppActor | null>;
-  interpret(actor: WhatsAppActor, request: { text: string }): Promise<{
-    intent: 'sale' | 'report' | 'expense' | 'unknown'; confidence: number;
-    data: { items?: SaleItem[] }; needsConfirmation: boolean; clarification?: string;
-  }>;
+  interpret(actor: WhatsAppActor, request: { text: string }): Promise<InterpretationResult>;
+  interpretSelection?(actor: WhatsAppActor, text: string, productId: string): Promise<InterpretationResult>;
+  accounting?: ReturnType<typeof createAccounting>;
+  choices?: ReturnType<typeof createChoices>;
   onboard?(message: InboundMessage): Promise<string>;
   createDraft(sender: string, operationKey: string, items: SaleItem[]): Promise<z.infer<typeof draftSchema>>;
   confirmDraft(sender: string, draftId: string, quoteVersion: number): Promise<ConfirmationResult>;
@@ -27,6 +30,8 @@ export function createConversation(deps: ConversationDependencies) {
     if (actor.verifiedSender !== message.from || actor.channel !== 'whatsapp') throw new Error('Identity mismatch');
     if (message.kind !== 'text') return 'Por ahora puedo registrar ventas por texto. Escribe los productos y cantidades.';
     const text = message.text!.trim();
+    const accountingReply = await deps.accounting?.command(message);
+    if (accountingReply) return accountingReply;
     const action = /^(confirmar|cancelar)\s+([a-f0-9-]{36})(?:\s+([1-9][0-9]{0,8}))?$/i.exec(text);
     if (action && z.string().uuid().safeParse(action[2]).success) {
       if (action[1].toLowerCase() === 'cancelar') { await deps.cancelDraft(message.from, action[2]); return 'Borrador cancelado.'; }
@@ -38,12 +43,24 @@ export function createConversation(deps: ConversationDependencies) {
     }
     if (/^(sí|si|confirmar|cancelar)$/i.test(text)) return 'Incluye el identificador del resumen: CONFIRMAR <id> <versión> o CANCELAR <id>.';
     if (/^(hola|buenos días|buenas tardes)[!. ]*$/i.test(text)) return 'Hola. Escribe tu venta con productos y cantidades; te mostraré un resumen antes de registrarla.';
-    const result = await deps.interpret(actor, { text });
+    let result: InterpretationResult;
+    let operationKey = `infobip:${message.providerMessageId}`;
+    if (/^ELEGIR\b/i.test(text)) {
+      let selection;
+      try { selection = deps.choices?.read(message); }
+      catch { return 'La selección venció o no es válida. Escribe la venta completa otra vez.'; }
+      if (!selection || !deps.interpretSelection) return 'Escribe la venta completa con la presentación de cada producto.';
+      result = await deps.interpretSelection(actor, selection.originalText, selection.productId);
+      operationKey = selection.operationKey;
+    } else result = await deps.interpret(actor, { text });
+    if (result.clarificationOptions?.length && deps.choices) return deps.choices.prompt(message, result);
     if (result.clarification) return result.clarification;
+    if (result.intent === 'expense' && result.data.expense && deps.accounting) return deps.accounting.propose(message, result.data.expense);
+    if (result.intent === 'report' && result.data.report === 'sales_today' && deps.accounting) return deps.accounting.report(message.from);
     if (result.intent !== 'sale' || result.confidence < 0.8 || !Number.isFinite(result.confidence) || result.confidence > 1) return 'Necesito los productos y cantidades de la venta. Todavía no registré ninguna operación.';
     const items = itemsSchema.parse(result.data.items);
     if (new Set(items.map(i => i.product_id)).size !== items.length) return 'Aclara las cantidades por producto antes de continuar.';
-    const draft = await deps.createDraft(message.from, `infobip:${message.providerMessageId}`, items);
+    const draft = await deps.createDraft(message.from, operationKey, items);
     if (draft.status !== 'pending' || !draft.quote) return 'Este borrador ya fue procesado. Consulta el recibo o inicia una nueva venta.';
     return `${summary(draft.quote)}\nNo se ha registrado la venta. ${instructions(draft.draft_id, draft.quote_version)} Vence: ${draft.expires_at}.`;
   };

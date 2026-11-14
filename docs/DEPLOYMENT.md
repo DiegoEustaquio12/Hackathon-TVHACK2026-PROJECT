@@ -110,4 +110,4 @@ Prueba integrada de servidor y base local, sin mensajes reales:
 python3 scripts/check-role2-local.py
 ```
 
-La URL pública, las credenciales, la aplicación de migraciones al remoto y el intercambio real de mensajes no se ejecutaron durante esta implementación.
+Las migraciones 001–007 ya están aplicadas en `microai-dev`; el dry-run quedó sin pendientes y la aceptación SQL remota pasó con rollback de fixtures. Se reproduce con `python3 scripts/check-role1-database.py --remote-ref hfcetxrktdorebepttof`. La URL pública, la configuración de credenciales del despliegue y el intercambio real de mensajes siguen sin verificarse.

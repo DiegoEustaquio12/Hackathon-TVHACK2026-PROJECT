@@ -2,6 +2,10 @@
 
 Última actualización: 14 de noviembre de 2026. Este archivo resume decisiones del usuario y el estado comprobado para continuar en otro chat. Antes de actuar, revisar `git status`, commits recientes y archivos reales: otros integrantes pueden haber avanzado desde este resumen.
 
+## Estado más reciente — migraciones alojadas comprobadas
+
+Las migraciones **001–007 ya están aplicadas en `microai-dev`** (`hfcetxrktdorebepttof`). El dry-run posterior no tiene pendientes. La comprobación SQL transaccional remota pasó y revirtió sus fixtures; hay 11 tablas con RLS y las funciones privilegiadas no son ejecutables por `anon`/`authenticated`. Ver el cierre al final de este documento. Las menciones anteriores a remoto pendiente describen el estado histórico. El despliegue HTTPS y WhatsApp real siguen pendientes.
+
 ## Proyecto y objetivo
 
 - Workspace: `/Users/roltac/Desktop/Hackathon-TVHACK2026-PROJECT`.
@@ -203,3 +207,19 @@ El usuario prefiere español claro, acciones concretas y continuidad autónoma. 
 - No existe vínculo local `.vercel/project.json`. No se verificó dominio público, variables de Vercel, enrutamiento de Infobip ni WhatsApp real. No se hizo push ni despliegue.
 - El build regeneró `next-env.d.ts`; se repuso exactamente su contenido previo para evitar introducir dependencia de `.next` en un checkout limpio.
 - Próximo paso operativo: aplicar las siete migraciones revisadas en el entorno alojado mediante el responsable de migraciones; después configurar/publicar la aplicación y enlazar Infobip. No usar un reset remoto.
+
+## Cierre R1 — aplicación y aceptación de la base alojada
+
+- Autorización explícita del usuario: aplicar migraciones 001–007 y comprobar el backend alojado con datos ficticios.
+- Se repitió el dry-run, se confirmó `microai-dev` y se ejecutó `npx supabase db push --remote --yes`. Las siete migraciones se aplicaron correctamente, sin reset ni seeds.
+- Dry-run posterior: `upToDate: true`, `migrations: []`.
+- Inventario remoto: 11 tablas públicas; todas con RLS activado. Las funciones SECURITY DEFINER permiten ejecución a `service_role` y la deniegan a `anon`/`authenticated`. Las comprobaciones también revisan funciones privadas de leases/enlaces, escrituras directas e aislamiento por negocio.
+- Nuevo comprobador `scripts/check-role1-database.py`: local por defecto; remoto solo con referencia explícita y permitida. Reutiliza cuatro archivos SQL de aceptación, reemplaza teléfonos fijos por identidades sintéticas nuevas y aborta si alguna ya existe. Ejecuta una sola sentencia DO con subtransacciones y rollback deliberado al terminar; no guarda fixtures ni solicita claves ni llama a Infobip.
+- Pasó primero contra local y después contra remoto: venta, stock, snapshots, replay, falta de stock sin venta parcial, aislamiento/RLS, rechazo de inyección de precio, alta explícita, cotizaciones versionadas, productos/unidades, edición comercial obsoleta, gastos/reportes, leases, enlaces de un uso y cancelación/expiración de gastos.
+- Comandos reproducibles:
+  ```bash
+  python3 scripts/check-role1-database.py
+  python3 scripts/check-role1-database.py --remote-ref hfcetxrktdorebepttof
+  ```
+- Alcance: pruebas SQL contra PostgreSQL alojado; no prueban concurrencia remota entre conexiones, transporte PostgREST, despliegue Next.js ni WhatsApp real. La integración local previa sí cubre concurrencia/PostgREST y mantiene su restricción a localhost.
+- Siguiente bloqueo operativo: R3 publica/configura aplicación HTTPS; R2 enlaza Infobip y comprueba recepción/respuesta y venta desde teléfono real. R1 puede continuar medios/IA en paralelo.

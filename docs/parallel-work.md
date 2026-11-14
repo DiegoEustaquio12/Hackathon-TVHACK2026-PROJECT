@@ -8,12 +8,12 @@ Leer esta guía y [los contratos](integration-contracts.md). Después continuar 
 
 | Parte | Estado y evidencia | Pendiente |
 | --- | --- | --- |
-| Datos / R1 | Migraciones 001–007 aplicadas localmente; dominio conectado a R2 y almacenamiento durable probado | Base alojada, conexión de paneles, IA y medios |
+| Datos / R1 | Migraciones 001–007 aplicadas localmente y en microai-dev; dominio y permisos SQL comprobados | Conexión de paneles, IA y medios |
 | Infobip / R2 | Adaptador, autenticación, alta, ventas/gastos/reportes, selecciones por renglón y cancelación persistente | Configurar perfil real y comprobar entrada/respuesta por WhatsApp |
 | HTTP / R3 | Demo web, contratos y ruta real Infobip compilada | Credenciales, URL pública y despliegue verificado |
-| Supabase alojado | Repositorio vinculado a `microai-dev` | No asumir migraciones locales desplegadas allí |
+| Supabase alojado | `microai-dev` migrado hasta 007; aceptación SQL con rollback aprobada | Conectar despliegue y comprobar recorrido externo |
 
-Varios archivos de `src/`, migraciones y comprobaciones siguen sin seguimiento de Git: incluirlos en los PRs. Documentar una función no sustituye entregar su implementación.
+La entrega correctiva se guardó en el commit local `42babeb`; aún no se ha publicado mediante push. Documentar una función no sustituye entregar su implementación.
 
 ## Trabajo inmediato en paralelo
 

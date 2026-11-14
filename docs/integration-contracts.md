@@ -38,13 +38,22 @@ type SaleItemInput = { product_id: string; quantity: number };
 type InterpretationResult = {
   intent: 'sale' | 'report' | 'expense' | 'unknown';
   confidence: number; // 0..1; nunca sustituye la confirmación
-  data: { items?: SaleItemInput[]; report?: 'sales_today' };
+  data: { items?: SaleItemInput[]; report?: 'sales_today'; expense?: { concept: string; amount_cents: number } };
   needsConfirmation: boolean;
   clarification?: string;
+  clarificationOptions?: { product_id: string; label: string }[];
 };
 ```
 
-R1 implementa `interpretSaleMessage(request, catalogue)` como función pura y `interpretForWhatsApp(client, verifiedSender, request)` como adaptador que resuelve negocio y catálogo. Este último devuelve `{ business, interpretation }`; `business` incluye `business_type` para futuros modelos de IA. El P0 solo devuelve intenciones `sale`/`unknown`: reportes/gastos siguen pendientes. Una venta resuelta devuelve IDs/cantidades. Una ambigüedad devuelve pregunta y ningún carrito ejecutable. Importes mencionados en texto no sobreescriben el catálogo; deben generar aclaración si contradicen el precio.
+R1 implementa `interpretSaleMessage(request, catalogue)` como función pura y `interpretForWhatsApp(client, verifiedSender, request)` como adaptador que resuelve negocio y catálogo. Devuelve `{ business, interpretation }`; `business` incluye giro/zona horaria. Intenciones actuales: `sale`, `expense`, `report`, `unknown`. Venta resuelta devuelve IDs/cantidades; ambigüedad devuelve pregunta y `clarificationOptions?: { product_id, label }[]`, sin carrito ejecutable. No sobreescribir precios del catálogo desde el texto.
+
+El estándar y la creación/edición de productos están en [product-standard.md](product-standard.md). Resolver “una coca” contra todas las presentaciones; si es ambiguo preguntar. La cantidad “una” equivale a 1, pero nunca significa una presentación específica. Mostrar nombres completos, contenido y unidad en el resumen.
+
+“Gasté 50 en luz” devuelve `data.expense = { concept, amount_cents }` y requiere confirmación. R2 conserva su propuesta/confirmación de gasto con una clave estable; no enviarla a `createSaleDraft`, que solo admite artículos de venta. Tras aprobación explícita invocar `recordExpense` en `src/modules/data/accounting.ts`. El repositorio es idempotente; la conversación de confirmación de gastos corresponde a R2.
+
+“¿Cuánto vendí hoy?” devuelve `data.report = 'sales_today'`. Llamar `getBusinessDailyReport` para responder con importes reales. Si retorna `TIME_ZONE_REQUIRED`, preguntar zona/localidad y configurar `setBusinessTimeZone` antes de definir el día: no inferir que todos los negocios mexicanos comparten zona. Gastos y ventas se reportan por separado; el reporte no calcula utilidad.
+
+Ver [contrato de gastos/reportes](accounting-contract.md) para fechas, reintentos y respuestas tipadas. R3 usa los repositorios de productos del servidor: la migración 005 retira escrituras directas a productos/gastos y la 006 exige snapshot `expected` para impedir sobreescritura de stock desde un formulario antiguo.
 
 R2 empieza con mock del fixture “Vendí 3 cocas y 2 panes”, usando IDs de catálogo fixture acordados. R3 no construye otro intérprete.
 
@@ -73,4 +82,4 @@ R3 usa handler mock local mientras llega el real. Una ruta pública mock no debe
 
 - Borradores no reservan stock. La migración 004 guarda el resumen de precios con versión y detecta cambios atómicamente al confirmar. R2 debe mostrar `previous_quote` y `quote` claramente y generar otra confirmación ligada al nuevo `quote_version`. `price_changed` y `quote_outdated` no son ventas confirmadas. `formatPriceChangeNotice` ofrece el texto de cambio. Un botón antiguo no acepta la nueva versión.
 - Alta de negocio implementada en datos; falta conversación R2 para recopilar nombre/giro desde el remitente verificado. El seed no crea usuario ni WhatsApp real. Negocios existentes sin giro deben completar alta antes de operar.
-- Definir zona horaria del negocio antes de prometer el reporte “ventas de hoy”.
+- La zona horaria ahora se configura mediante repositorio y queda pendiente de preguntar a cada negocio antes del primer reporte; no hay una zona predeterminada silenciosa.

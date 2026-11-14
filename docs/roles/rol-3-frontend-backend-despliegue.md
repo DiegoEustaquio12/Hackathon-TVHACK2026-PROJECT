@@ -19,6 +19,8 @@ Entregar el transporte público de Infobip y los paneles de Knectan. WhatsApp es
 
 ## UI y reglas de integración
 
+El panel de productos debe recopilar la especificación de [product-standard.md](../product-standard.md), no solo un nombre libre. Usar `createStandardProduct` y `updateProductCommercials` desde servidor; el segundo exige los valores originales `expected` y devuelve `PRODUCT_CHANGED` si la información quedó antigua. La migración 005 retira escrituras directas del navegador sobre productos/gastos. Las lecturas conservan RLS. Para gastos/reportes ver [accounting-contract.md](../accounting-contract.md); pedir zona horaria y nunca etiquetar ventas menos gastos como utilidad.
+
 - Next.js, TypeScript y CSS Modules. Globales solo para reset/tokens. Aplicar las skills visuales disponibles al implementar pantallas.
 - Identidad desde sesión verificada; `businessId` del navegador no autoriza acceso. R2 implementa identidad y R3 conecta sesión/transporte.
 - Precios de catálogo, sin edición durante venta; mostrar agotados/errores de stock y evitar venta parcial.

@@ -26,8 +26,13 @@ Comprobar comportamiento en local sin conservar fixtures:
 npx supabase db query --file supabase/checks/whatsapp-sales.sql
 npx supabase db query --file supabase/checks/whatsapp-conversations.sql
 npx supabase db query --file supabase/checks/onboarding-and-prices.sql
+npx supabase db query --file supabase/checks/standard-products-accounting.sql
 ```
 
 La migración `202611140003_provider_independent_whatsapp.sql` mantiene las reglas de venta y cambia el origen predeterminado a `whatsapp`. Agrega eventos de proveedor y borradores de venta para reemplazar Flows por conversación con Infobip. Sus funciones solo son invocables desde servidor.
 
 La migración `202611140004_onboarding_and_price_confirmation.sql` agrega giro y fecha de alta explícita, exige alta completa antes de vender y agrega resúmenes de precio versionados. Negocios existentes quedan pendientes de completar giro; no se inventa uno en la migración. La confirmación de borradores ahora recibe versión y devuelve un estado tipado. Ver el contrato de datos para adaptar consumidores anteriores.
+
+La migración 005 agrega especificaciones/alias de productos, RPC de creación/edición comercial, gastos idempotentes y reporte diario. Las escrituras de productos/gastos desde clientes se sustituyen por RPC de servidor. Los productos antiguos se preservan sin inferir marca/contenido. Antes de consultar un día configurar la zona IANA mediante `setBusinessTimeZone`; no hay una zona supuesta silenciosamente.
+
+La migración 006 exige `expected` al editar precio/costo/stock para evitar sobrescribir valores cambiados desde que se abrió el formulario, especialmente ventas simultáneas. Ante `PRODUCT_CHANGED`, recargar el producto y solicitar revisar la edición.

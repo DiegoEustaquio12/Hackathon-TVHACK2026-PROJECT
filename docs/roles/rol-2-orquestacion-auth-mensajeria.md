@@ -6,6 +6,8 @@ Conectar canales e identidad con interpretación y operaciones del negocio. Para
 
 ## Trabajo inmediato en paralelo
 
+**Nuevas capacidades R1:** leer [estándar de productos](../product-standard.md) y [gastos/reportes](../accounting-contract.md). `clarificationOptions` entrega IDs/nombres completos cuando “coca” tiene varias presentaciones: pedir elección y reconstruir el carrito antes del resumen; no confirmar inmediatamente la venta al elegir un producto. Las intenciones ahora incluyen `expense` (propuesta que necesita aprobación y clave estable) y `report` (`sales_today`, lectura sin aprobación). Si falta zona horaria, pedirla antes del reporte. No pasar gastos a los borradores de venta.
+
 1. Leer [guía paralela](../parallel-work.md) y [contratos](../integration-contracts.md); R3 materializa los tipos TS.
 2. Implementar adaptador, autenticación y parser Infobip con fixtures sanitizados. Contrastar el esquema con documentación/evento real.
 3. Implementar conversación con intérprete mock y repositorios inyectados de R1; no crear tablas paralelas de eventos o borradores.

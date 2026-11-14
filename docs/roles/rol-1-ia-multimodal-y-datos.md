@@ -6,6 +6,8 @@ Interpretar texto, audio e imágenes con salida estructurada y persistir el domi
 
 ## Trabajo inmediato en paralelo
 
+**Entrega ampliada disponible:** estándar de productos y alias persistidos, creación/edición comercial segura, interpretación de “una coca” con preguntas por presentación, gastos idempotentes y reporte diario por zona IANA explícita. Migraciones 005–006; contratos en `docs/product-standard.md` y `docs/accounting-contract.md`. Sigue pendiente la interpretación de audio/imágenes, la IA y conectar estos servicios desde R2/R3.
+
 **Entrega actual:** migración 004 de alta explícita y precios versionados; parser `interpretSaleMessage`; adaptadores `findBusinessByWhatsApp`, `getBusinessCatalogue`, `interpretForWhatsApp` y `completeBusinessOnboarding`. El catálogo se obtiene por número verificado, nunca por un negocio elegido desde el mensaje. Ver contratos actualizados; los pasos siguientes describen el alcance de esta entrega y su integración.
 
 Leer [guía paralela](../parallel-work.md), [contratos](../integration-contracts.md) y [contrato de datos](../../src/modules/data/README.md). Las migraciones 001–004 y repositorios ya se comprobaron localmente; publicar esta entrega en un PR para R2.

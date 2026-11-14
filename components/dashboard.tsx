@@ -1,15 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { dashboardSchema, orderSchema, orderStatusSchema, statusLabels, type Dashboard as DashboardData, type DashboardQuery, type Order, type OrderStatus } from "@/src/contracts/distributor";
+import { dashboardSchema, orderSchema, orderStatusSchema, statusLabels, type Dashboard as DashboardData, type DashboardQuery, type Order, type OrderStatus } from "../src/contracts/distributor";
 import { api, errorMessage, jsonRequest } from "./api-client";
-import { ENDPOINTS } from "@/src/config/env";
+import { ENDPOINTS } from "../src/config/env";
 import { Icon } from "./icon";
 import Link from "next/link";
 import { BrandLogo } from "./brand-logo";
 import { CreateOrderDialog, DeleteOrderDialog } from "./order-dialog";
 import { currency } from "./money";
-import { channelLabels } from "@/src/contracts/distributor";
+import { channelLabels } from "../src/contracts/distributor";
 import ui from "./workspace.module.css";
 import styles from "./dashboard.module.css";
 

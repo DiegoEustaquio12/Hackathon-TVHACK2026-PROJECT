@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { audioMimeTypes, chatInputSchema, historySchema, imageMimeTypes, MAX_MEDIA_BYTES, sendMessageResponseSchema, type ChatInput, type ChatMessage } from "@/src/contracts/chat";
+import { audioMimeTypes, chatInputSchema, historySchema, imageMimeTypes, MAX_MEDIA_BYTES, sendMessageResponseSchema, type ChatInput, type ChatMessage } from "../src/contracts/chat";
 import { api, errorMessage, jsonRequest } from "./api-client";
-import { ENDPOINTS } from "@/src/config/env";
+import { ENDPOINTS } from "../src/config/env";
 import { Icon } from "./icon";
 import { BrandLogo } from "./brand-logo";
 import ui from "./workspace.module.css";

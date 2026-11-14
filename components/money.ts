@@ -1,4 +1,4 @@
-import { createOrderSchema } from "@/src/contracts/distributor";
+import { createOrderSchema } from "../src/contracts/distributor";
 
 export const currency = (cents: number) => new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(cents / 100);
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { Chat } from "@/components/chat";
-import { Workspace } from "@/components/workspace";
-import { isMockMode } from "@/src/modules/http/session";
+import { Chat } from "../../components/chat";
+import { Workspace } from "../../components/workspace";
+import { isMockMode } from "../../src/modules/http/session";
 
 export const metadata: Metadata = { title: "Asistente" };
 export const dynamic = "force-dynamic";

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { planActivationSchema, recommendPlan, supplierPlans, type SupplierPlan } from "@/src/contracts/plans";
+import { planActivationSchema, recommendPlan, supplierPlans, type SupplierPlan } from "../src/contracts/plans";
 import { api, errorMessage, jsonRequest } from "./api-client";
-import { ENDPOINTS } from "@/src/config/env";
+import { ENDPOINTS } from "../src/config/env";
 import { currency } from "./money";
 import ui from "./workspace.module.css";
 import styles from "./supplier-plans.module.css";

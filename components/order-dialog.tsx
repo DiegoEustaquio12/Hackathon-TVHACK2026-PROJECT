@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { channelLabels, createOrderSchema, deleteOrderResponseSchema, orderChannelSchema, orderSchema, type Order } from "@/src/contracts/distributor";
+import { channelLabels, createOrderSchema, deleteOrderResponseSchema, orderChannelSchema, orderSchema, type Order } from "../src/contracts/distributor";
 import { api, errorMessage, jsonRequest } from "./api-client";
-import { ENDPOINTS } from "@/src/config/env";
+import { ENDPOINTS } from "../src/config/env";
 import { currency, mxnToCents } from "./money";
 import ui from "./workspace.module.css";
 import styles from "./order-dialog.module.css";

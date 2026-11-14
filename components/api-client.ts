@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { errorSchema } from "@/src/contracts/common";
+import { errorSchema } from "../src/contracts/common";
 
 export async function api<T>(url: string, schema: z.ZodType<T>, init?: RequestInit): Promise<T> {
   let response: Response;

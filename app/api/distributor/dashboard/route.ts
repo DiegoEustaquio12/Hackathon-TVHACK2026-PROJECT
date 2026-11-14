@@ -1,5 +1,5 @@
-import { dashboardQuerySchema, dashboardSchema } from "@/src/contracts";
-import { handle, parseInput, queryInput } from "@/src/modules/http/handler";
+import { dashboardQuerySchema, dashboardSchema } from "../../../../src/contracts";
+import { handle, parseInput, queryInput } from "../../../../src/modules/http/handler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

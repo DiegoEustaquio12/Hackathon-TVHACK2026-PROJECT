@@ -1,5 +1,5 @@
-import { emptyQuerySchema, orderParamsSchema, orderSchema, updateOrderSchema } from "@/src/contracts";
-import { handle, parseInput, queryInput, readJson } from "@/src/modules/http/handler";
+import { emptyQuerySchema, orderParamsSchema, orderSchema, updateOrderSchema } from "../../../../../../src/contracts";
+import { handle, parseInput, queryInput, readJson } from "../../../../../../src/modules/http/handler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

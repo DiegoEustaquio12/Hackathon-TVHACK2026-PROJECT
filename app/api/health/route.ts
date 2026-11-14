@@ -1,6 +1,6 @@
-import { emptyQuerySchema, healthSchema } from "@/src/contracts";
-import { handlePublic, parseInput, queryInput } from "@/src/modules/http/handler";
-import { healthService } from "@/src/modules/http/health";
+import { emptyQuerySchema, healthSchema } from "../../../src/contracts";
+import { handlePublic, parseInput, queryInput } from "../../../src/modules/http/handler";
+import { healthService } from "../../../src/modules/http/health";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

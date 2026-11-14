@@ -11,7 +11,7 @@ Leer esta guía y [los contratos](integration-contracts.md). Después continuar 
 | Datos / R1 | Migraciones 001–007 aplicadas localmente y en microai-dev; dominio y permisos SQL comprobados | Conexión de paneles, IA y medios |
 | Infobip / R2 | Adaptador, autenticación, alta, ventas/gastos/reportes, selecciones por renglón y cancelación persistente | Configurar perfil real y comprobar entrada/respuesta por WhatsApp |
 | HTTP / R3 | Demo web, contratos y ruta real Infobip compilada | Credenciales, URL pública y despliegue verificado |
-| Supabase alojado | `microai-dev` migrado hasta 007; aceptación SQL con rollback aprobada | Conectar despliegue y comprobar recorrido externo |
+| Supabase alojado | `microai-dev` migrado hasta 008; aceptación SQL con rollback aprobada | Conectar despliegue y comprobar recorrido externo |
 
 La entrega correctiva se guardó en el commit local `42babeb`; aún no se ha publicado mediante push. Documentar una función no sustituye entregar su implementación.
 
@@ -69,4 +69,6 @@ El hito B está comprobado contra Supabase local con proveedor saliente simulado
 
 ## Acuerdo multimedia vigente
 
-Audios e imágenes: **Supabase Storage privado** para el MVP; S3 aplazado. R1 entrega `createSupabaseMediaStore` y migración 008 (aplicada solo localmente); R2 conecta descarga segura desde Infobip a `save`; R3 aplica configuración/flag de servidor y coordina despliegue de 008. No implementar almacenamiento AWS paralelo. Ver [media-storage.md](media-storage.md).
+Audios e imágenes: **Supabase Storage privado** para el MVP; S3 aplazado. R1 entrega `createSupabaseMediaStore` y migración 008 (aplicada localmente y en microai-dev); R2 ya conecta descarga segura desde Infobip a `save`, pendiente de aceptación externa; R3 aplica configuración/flag de servidor y coordina despliegue de 008. No implementar almacenamiento AWS paralelo. Ver [media-storage.md](media-storage.md).
+
+Actualización multimedia: 008 ya está aplicada y comprobada en microai-dev. Descarga Infobip AUDIO/IMAGE y primera extracción/revisión de tickets implementadas, con flags desactivados por defecto. Antes de producción faltan credenciales, HTTPS/enrutamiento y comprobar evento/redirecciones reales. La prueba local usa Supabase DB/Storage/Auth reales y HTTP externos simulados; no equivale a WhatsApp real. Ver [tickets](receipt-interpretation.md).

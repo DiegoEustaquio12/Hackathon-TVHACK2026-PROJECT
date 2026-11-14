@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { createRole2Service } from '../orchestration/service';
 import { createSupabaseMediaStore, createSupabaseAudioReader } from '../media/supabase-storage';
+import { createInfobipMediaIngestor } from '../messaging/infobip-media';
+import { createOpenAIReceiptExtractor } from '../media/openai-receipts';
 import { createOpenAIAudioTranscriber } from '../media/openai-transcriber';
 
 type WebhookHandler = ReturnType<typeof createRole2Service>;
@@ -21,11 +23,17 @@ export function getInfobipHandler(): WebhookHandler {
     onboardingSecret:process.env.INFOBIP_ONBOARDING_SECRET});
   const client=createClient(config.url,config.serviceKey,
     {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+  const store=createSupabaseMediaStore({client,url:config.url,serviceKey:config.serviceKey});
   const audio=process.env.WHATSAPP_AUDIO_ENABLED==='true' ? {
-    reader:createSupabaseAudioReader(createSupabaseMediaStore({client,url:config.url,serviceKey:config.serviceKey})),
+    reader:createSupabaseAudioReader(store),
     transcriber:createOpenAIAudioTranscriber({apiKey:process.env.OPENAI_API_KEY??''}),
   } : undefined;
-  handler = createRole2Service({ ...config,client,audio });
+  const receipts=process.env.WHATSAPP_RECEIPTS_ENABLED==='true'?{
+    reader:store,extractor:createOpenAIReceiptExtractor({apiKey:process.env.OPENAI_API_KEY??'',model:process.env.OPENAI_RECEIPT_MODEL}),
+  }:undefined;
+  const ingestMedia=audio||receipts?createInfobipMediaIngestor({...config,
+    redirectOrigins:(process.env.INFOBIP_MEDIA_REDIRECT_ORIGINS??'').split(',').map(v=>v.trim()).filter(Boolean)},store):undefined;
+  handler = createRole2Service({ ...config,client,audio,receipts,ingestMedia });
   return handler;
 }
 

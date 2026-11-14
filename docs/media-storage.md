@@ -20,7 +20,7 @@ Ambos buckets limitan cada objeto a 10 MiB. `business_media` tiene RLS y no conc
 
 Las rutas de objetos se generan en servidor como `<businessUUID>/<audio|image>/<objectUUID>`. Una ruta con el prefijo correcto no basta para acceder: se exige registro de metadatos del mismo negocio y se comprueba la identidad por el número verificado del webhook. El lector rechaza buckets públicos accidentalmente y no genera URLs públicas ni firmadas.
 
-Estado de esta entrega: **008 aplicada y comprobada localmente; pendiente de aplicar en `microai-dev`**. Las migraciones anteriores 001–007 ya estaban aplicadas en remoto. Antes de activar medios alojados, revisar `npx supabase db push --dry-run --remote` y coordinar la aplicación de 008. No hacer reset.
+Estado de esta entrega: **008 aplicada y comprobada en local y en `microai-dev`**. El dry-run remoto posterior quedó sin migraciones pendientes. Se comprobaron buckets privados, límites, RLS y políticas restrictivas. No hacer reset.
 
 ## API de servidor
 
@@ -53,8 +53,8 @@ Storage y PostgreSQL **no comparten una transacción**. Ante un resultado de esc
 ## Integración R1/R2/R3
 
 - **R1:** adaptador de almacenamiento y lector privado implementados; transcripción `gpt-transcribe`, interpretación y confirmaciones existentes.
-- **R2:** descargar medios únicamente desde el origen autenticado y validado de Infobip, limitar tamaño antes de acumularlos y llamar `save`. Normalizar el evento interno a `kind: 'audio', audio: reference`. No aceptar un storageKey del payload como autoridad. Todavía falta contrastar el evento real y conectar esta descarga; el parser actual mantiene medios como `unsupported`.
-- **R3:** el bootstrap HTTP ya compone lector Supabase y transcriptor si `WHATSAPP_AUDIO_ENABLED=true`; requiere `OPENAI_API_KEY` y las variables Supabase existentes. Dejarlo desactivado hasta aplicar 008 y conectar R2. El flag no implementa recepción de medios por sí solo.
+- **R2:** descargar medios únicamente desde el origen autenticado y validado de Infobip, limitar tamaño antes de acumularlos y llamar `save`. Normalizar el evento interno a `kind: 'audio', audio: reference`. No aceptar un storageKey del payload como autoridad. El parser ya reconoce AUDIO/IMAGE con URL según el SDK oficial, y `createInfobipMediaIngestor` conecta descarga acotada a `save`; falta comprobar el evento/origen/redirecciones reales de la cuenta. Ver `receipt-interpretation.md`.
+- **R3:** el bootstrap HTTP ya compone lector Supabase y transcriptor si `WHATSAPP_AUDIO_ENABLED=true`; requiere `OPENAI_API_KEY` y las variables Supabase existentes. 008 ya está aplicada en remoto y la descarga de R2 ya está conectada. Configurar y verificar credenciales, HTTPS/enrutamiento y orígenes de redirección antes de activar. Imágenes usan `WHATSAPP_RECEIPTS_ENABLED`; ambos flags permanecen false por defecto.
 
 La demo web mock conserva sus archivos temporales y no está conectada a estos buckets. La ruta real no usa su sesión mock. El flujo de audio mantiene aclaraciones y resumen; solo una confirmación textual versionada registra venta y descuenta stock.
 

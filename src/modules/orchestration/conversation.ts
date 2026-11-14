@@ -4,12 +4,17 @@ import type { createChoices, SelectionContext } from './choices';
 import { z } from 'zod';
 import { draftSchema, type ConfirmationResult, formatPriceChangeNotice, quoteSchema } from '../data/sale-results';
 import type { InboundMessage, WhatsAppActor } from '../messaging/contracts';
+import { AudioError } from '../media/audio';
+import { MessagingError } from '../messaging/contracts';
+import type { createReceiptReview } from './receipts';
 import type { AudioReference } from '../media/audio';
 import type { AudioPreparation } from '../interpretation/audio';
 export type SaleItem = { product_id: string; quantity: number };
 export interface ConversationDependencies {
   resolveActor(sender: string): Promise<WhatsAppActor | null>;
   interpret(actor: WhatsAppActor, request: { text: string }): Promise<InterpretationResult>;
+  ingestMedia?(actor:WhatsAppActor,message:InboundMessage):Promise<InboundMessage>;
+  receipts?:ReturnType<typeof createReceiptReview>;
   prepareAudio?(actor: WhatsAppActor, reference: AudioReference): Promise<AudioPreparation>;
   interpretSelection?(actor: WhatsAppActor, text: string, selections: Record<string,string>): Promise<InterpretationResult>;
   accounting?: ReturnType<typeof createAccounting>;
@@ -31,6 +36,20 @@ export function createConversation(deps: ConversationDependencies) {
     const actor = await deps.resolveActor(message.from);
     if (!actor) return deps.onboard ? deps.onboard(message) : 'Vincula tu número con tu negocio mediante un enlace seguro antes de registrar operaciones.';
     if (actor.verifiedSender !== message.from || actor.channel !== 'whatsapp') throw new Error('Identity mismatch');
+    if(message.providerMedia) {
+      if(!deps.ingestMedia || (message.kind==='audio'&&!deps.prepareAudio) || (message.kind==='image'&&!deps.receipts))
+        return 'Los medios todavía no están habilitados en este canal. Escribe los datos de la operación.';
+      try {message=await deps.ingestMedia(actor,message);}
+      catch(error) {
+        if((error instanceof AudioError||error instanceof MessagingError)&&!error.retryable)
+          return 'No pude descargar o validar ese archivo. Envía un audio/imagen compatible de hasta 10 MiB o escribe los datos. No se registró ninguna operación.';
+        throw error;
+      }
+    }
+    if(message.kind==='image') {
+      if(!deps.receipts||!message.image) return 'La lectura de tickets todavía no está habilitada. Escribe los datos de la operación.';
+      return deps.receipts.review(actor,message.image);
+    }
     const fromAudio = message.kind === 'audio';
     let notice = '';
     if (fromAudio) {
@@ -42,6 +61,8 @@ export function createConversation(deps: ConversationDependencies) {
       notice = `Transcripción: «${prepared.text}»\n`;
     } else if (message.kind !== 'text') return 'Por ahora puedo registrar ventas por texto. Escribe los productos y cantidades.';
     const text = message.text!.trim();
+    const receiptReply = !fromAudio ? deps.receipts?.command(actor,message) : null;
+    if(receiptReply) return receiptReply;
     const accountingReply = !fromAudio ? await deps.accounting?.command(message) : null;
     if (accountingReply) return accountingReply;
     const action = /^(confirmar|cancelar)\s+([a-f0-9-]{36})(?:\s+([1-9][0-9]{0,8}))?$/i.exec(text);

@@ -6,15 +6,18 @@ export const phoneSchema = z.string().regex(/^\+?[1-9][0-9]{7,14}$/).transform(v
 const inboundSchema = z.object({ results: z.array(z.object({
   messageId: z.string().min(1).max(190), from: phoneSchema, to: phoneSchema,
   receivedAt: z.string().refine(v => /(?:Z|[+-]\d{2}:?\d{2})$/.test(v) && Number.isFinite(Date.parse(v))),
-  message: z.object({ type: z.string(), text: z.string().max(4096).optional() }),
+  message: z.object({ type: z.string(), text: z.string().max(4096).optional(), url: z.url().max(4096).optional() }),
 })).min(1).max(100) });
 export function parseInfobipInbound(payload: unknown, recipient: string): InboundMessage[] {
   const expected = phoneSchema.parse(recipient);
   return inboundSchema.parse(payload).results.map(v => {
     if (v.to !== expected) throw new MessagingError('INVALID_RECIPIENT', false);
     if (v.message.type === 'TEXT' && !v.message.text?.trim()) throw new MessagingError('INVALID_TEXT', false);
+    const mediaKind = v.message.type === 'AUDIO' ? 'audio' : v.message.type === 'IMAGE' ? 'image' : undefined;
+    if(mediaKind && !v.message.url) throw new MessagingError('INVALID_MEDIA',false);
     return { provider: 'infobip', providerMessageId: v.messageId, from: v.from, to: v.to,
-      receivedAt: new Date(v.receivedAt).toISOString(), kind: v.message.type === 'TEXT' ? 'text' : 'unsupported',
+      receivedAt: new Date(v.receivedAt).toISOString(), kind: v.message.type === 'TEXT' ? 'text' : mediaKind ?? 'unsupported',
+      ...(mediaKind ? {providerMedia:{url:v.message.url!,kind:mediaKind}} : {}),
       ...(v.message.type === 'TEXT' ? { text: v.message.text } : {}) };
   });
 }

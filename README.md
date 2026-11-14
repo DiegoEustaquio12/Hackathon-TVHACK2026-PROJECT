@@ -29,4 +29,6 @@ Ver [`docs/integration-contracts.md`](docs/integration-contracts.md) para distin
 
 ## Almacenamiento multimedia del MVP
 
-Audios e imágenes se guardarán en **Supabase Storage privado**, con referencias/metadatos en PostgreSQL. AWS S3 se deja como alternativa futura y no es requisito del MVP. La migración 008 y el adaptador de servidor están descritos en [docs/media-storage.md](docs/media-storage.md). Aplicada localmente; pendiente en el entorno alojado.
+Audios e imágenes se guardarán en **Supabase Storage privado**, con referencias/metadatos en PostgreSQL. AWS S3 se deja como alternativa futura y no es requisito del MVP. La migración 008 y el adaptador de servidor están descritos en [docs/media-storage.md](docs/media-storage.md). Aplicada y comprobada en local y microai-dev.
+
+Actualización multimedia: 008 ya está aplicada y comprobada en microai-dev. Descarga Infobip AUDIO/IMAGE y primera extracción/revisión de tickets implementadas, con flags desactivados por defecto. Antes de producción faltan credenciales, HTTPS/enrutamiento y comprobar evento/redirecciones reales. La prueba local usa Supabase DB/Storage/Auth reales y HTTP externos simulados; no equivale a WhatsApp real. Ver `docs/receipt-interpretation.md` (desde docs: `receipt-interpretation.md`).

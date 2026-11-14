@@ -28,6 +28,17 @@ export function createSupabaseMediaStore(config:{client:SupabaseClient;url:strin
     return {storageKey:row.storage_key,mimeType:row.mime_type};
   }
   return {
+    async find(actor:AudioActor,operationKey:string,kind:MediaKind):Promise<AudioReference|null> {
+      await authorize(actor);
+      const {data,error}=await config.client.from('business_media').select('*').eq('business_id',actor.businessId)
+        .eq('operation_key',operationKey).maybeSingle();
+      if(error) throw new Error('MEDIA_METADATA_UNAVAILABLE');
+      if(!data) return null;
+      const row=recordSchema.parse(data);
+      if(row.kind!==kind||row.bucket_id!==buckets[kind]) throw new Error('MEDIA_IDEMPOTENCY_CONFLICT');
+      await privateBucket(row.bucket_id);
+      return reference(row);
+    },
     /** Input bytes must come from a bounded, authenticated provider download by R2. */
     async save(actor:AudioActor,input:{kind:MediaKind;operationKey:string;mimeType:string;bytes:Uint8Array}):Promise<AudioReference> {
       await authorize(actor);

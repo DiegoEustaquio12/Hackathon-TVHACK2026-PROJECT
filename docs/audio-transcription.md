@@ -43,11 +43,11 @@ const handler = createRole2Service({
 
 Este ejemplo usa el lector Supabase implementado por R1 y requiere la migración 008. R2 debe guardar el archivo mediante `mediaStore.save` antes de entregar la referencia interna. La clave se configura en el servidor, nunca con prefijo `NEXT_PUBLIC_`. No copiarla al chat ni a los logs. La ausencia de clave hace fallar la construcción del adaptador; no hay fallback mock.
 
-**Estado de conexión:** `createRole2Service` ya acepta e inyecta el pipeline de audio, pero el parser Infobip público todavía conserva los medios como `unsupported`; no transforma un `storageKey` externo en autoridad. Falta contrastar el payload real y conectar la descarga Infobip a `mediaStore.save`. El almacenamiento privado y el lector ya están implementados; el bootstrap HTTP los conecta opcionalmente con `WHATSAPP_AUDIO_ENABLED=true` y `OPENAI_API_KEY`, después de aplicar 008 en el entorno elegido. Añadir `OPENAI_API_KEY` por sí solo no habilita audio en WhatsApp. La demo web mock permanece independiente. La entrega posterior de almacenamiento requiere la migración 008; ver `media-storage.md`.
+**Estado de conexión:** R2 ya normaliza AUDIO/IMAGE según el SDK oficial y descarga con `createInfobipMediaIngestor` dentro del claim durable; el bootstrap conecta Supabase privado y OpenAI al activar flags explícitos. 008 está aplicada y comprobada en local y microai-dev. Faltan configurar/verificar credenciales, URL pública, enrutamiento y orígenes reales de redirección. No se comprobó WhatsApp/OpenAI real. Ver `receipt-interpretation.md`.
 
 ## Evidencia
 
-- `npm run validate`: 89 pruebas aprobadas, integración local omitida por defecto.
+- `npm run validate`: 110 pruebas aprobadas, integración local omitida por defecto.
 - `npm run build`: aprobado.
 - `python3 scripts/check-role2-local.py`: aprobado con Supabase local real. Incluye audio preparado, borrador sin venta/descuento, replay sin retranscribir y confirmaciones posteriores sin duplicados. La prueba actual usa Storage/PostgreSQL/Auth locales reales; OpenAI y HTTP saliente de Infobip están simulados.
 - Pruebas específicas: multipart/modelo/idioma, límites, formatos, errores, identidad entregada al lector, aclaraciones, selección y rechazo de confirmaciones habladas.

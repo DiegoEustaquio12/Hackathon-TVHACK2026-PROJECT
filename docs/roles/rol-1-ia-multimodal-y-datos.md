@@ -1,6 +1,6 @@
 # Rol 1 — IA multimodal, interpretación y datos
 
-**Decisión vigente de almacenamiento:** audios e imágenes en **Supabase Storage privado**; AWS S3 queda para una posible migración futura. R1 ya implementó carga/lectura y migración 008 (solo local); R2 conecta descarga/normalización real de Infobip; R3 configura el bootstrap y coordina publicación. Detalles y límites en [almacenamiento multimedia](../media-storage.md).
+**Decisión vigente de almacenamiento:** audios e imágenes en **Supabase Storage privado**; AWS S3 queda para una posible migración futura. R1 ya implementó carga/lectura y migración 008 (local y remoto); R2 ya conecta descarga/normalización AUDIO/IMAGE según SDK, pendiente de aceptación externa; R3 configura el bootstrap y coordina publicación. Detalles y límites en [almacenamiento multimedia](../media-storage.md).
 
 
 ## Objetivo
@@ -11,7 +11,7 @@ Interpretar texto, audio e imágenes con salida estructurada y persistir el domi
 
 **Integración corregida:** migración 007 revisada y probada en local; almacenamiento R2, gasto cancelable y respuesta durable disponibles. La prueba `python3 scripts/check-role2-local.py` conecta los servicios con PostgreSQL local y prueba concurrencia sin enviar mensajes reales. Siguiente: apoyar aplicación remota coordinada y avanzar medios/IA, sin duplicar los repositorios.
 
-**Entrega ampliada disponible:** estándar de productos y alias persistidos, creación/edición comercial segura, interpretación de “una coca” con preguntas por presentación, gastos idempotentes y reporte diario por zona IANA explícita. Migraciones 005–006; contratos en `docs/product-standard.md` y `docs/accounting-contract.md`. Sigue pendiente la interpretación de audio/imágenes, la IA y conectar estos servicios desde R2/R3.
+**Entrega ampliada disponible:** estándar de productos y alias persistidos, creación/edición comercial segura, interpretación de “una coca” con preguntas por presentación, gastos idempotentes y reporte diario por zona IANA explícita. Migraciones 005–006; contratos en `docs/product-standard.md` y `docs/accounting-contract.md`. Audio y primera extracción de tickets con OpenAI ya implementados; faltan aceptación externa, creación asistida de productos y respaldo de IA para texto.
 
 **Entrega actual:** migración 004 de alta explícita y precios versionados; parser `interpretSaleMessage`; adaptadores `findBusinessByWhatsApp`, `getBusinessCatalogue`, `interpretForWhatsApp` y `completeBusinessOnboarding`. El catálogo se obtiene por número verificado, nunca por un negocio elegido desde el mensaje. Ver contratos actualizados; los pasos siguientes describen el alcance de esta entrega y su integración.
 
@@ -67,3 +67,5 @@ Endpoints HTTP, sesiones/login, envío y recepción de WhatsApp ni pantallas.
 ## Criterio de entrega
 
 La primera entrega interpreta fixtures de texto con catálogo inyectado y entrega al rol 2 artículos resueltos o una pregunta de aclaración. Los datos se guardan mediante repositorios existentes y migraciones repetibles. Las ventas esperan confirmación explícita. La interpretación de medios se verifica en una entrega posterior.
+
+**Tickets, primera etapa:** extracción estructurada OpenAI y revisión con elección explícita VENTA/COMPRA/GASTO implementadas; no producen operaciones contables. Ventas/gastos conservan confirmación textual; registro de compras pendiente. 110 pruebas y webhook local con Supabase real aprobados, HTTP externos simulados. Falta aceptación externa y configuración operativa. Ver [tickets](../receipt-interpretation.md).

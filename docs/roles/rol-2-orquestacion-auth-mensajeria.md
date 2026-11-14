@@ -1,6 +1,6 @@
 # Rol 2 — Orquestación de IA, autenticación y mensajería
 
-**Decisión vigente de almacenamiento:** audios e imágenes en **Supabase Storage privado**; AWS S3 queda para una posible migración futura. R1 ya implementó carga/lectura y migración 008 (solo local); R2 conecta descarga/normalización real de Infobip; R3 configura el bootstrap y coordina publicación. Detalles y límites en [almacenamiento multimedia](../media-storage.md).
+**Decisión vigente de almacenamiento:** audios e imágenes en **Supabase Storage privado**; AWS S3 queda para una posible migración futura. R1 ya implementó carga/lectura y migración 008 (local y remoto); R2 ya conecta descarga/normalización AUDIO/IMAGE según SDK, pendiente de aceptación externa; R3 configura el bootstrap y coordina publicación. Detalles y límites en [almacenamiento multimedia](../media-storage.md).
 
 
 ## Objetivo
@@ -35,7 +35,7 @@ Confirmar siempre la venta tras mostrar resumen; ligar cada confirmación al bor
 - Crear sesiones seguras con expiración y revocación.
 - Implementar la integración de WhatsApp: recepción de webhooks, autenticación apropiada al proveedor, validación, deduplicación, respuestas y consentimiento.
 - Mantener adaptadores de proveedores separados: **Infobip (prioritario para la demo)** y Meta Cloud API (opcional, pendiente de desbloqueo).
-- Dejar WhatsApp Flows como integración posterior: recepción de respuestas `interactive` / `nfm_reply`, validación y traducción a comandos de dominio. Si se requieren Flows dinámicos, coordinar endpoint HTTPS `data_exchange` con rol 3 y seguir el protocolo de Meta.
+- WhatsApp Flows fue descartado por decisión del usuario. Mantener el flujo conversacional con Infobip.
 - No registrar tokens, claves ni contenido sensible en logs.
 
 ## Carpetas a cargo
@@ -157,7 +157,7 @@ Propiedad del esquema de negocio, componentes visuales ni despliegue.
 
 Un mensaje entrante puede asociarse a un negocio autenticado, pasar por interpretación, pedir confirmación cuando haga falta y responder por el canal de origen sin duplicar operaciones. Para la demo se prioriza Infobip; se reporta por separado qué pruebas se completaron con mocks y cuáles se verificaron con WhatsApp real.
 
-## Entrega de implementación local R2
+## Entrega de implementación local R2 (histórico)
 
 Implementación en `src/modules/messaging/`, `src/modules/orchestration/` y `src/modules/auth/`. Ver integración y pendientes en `src/modules/messaging/README.md`.
 
@@ -165,8 +165,10 @@ Entregado: adaptador Infobip, parser de texto, autenticación Basic configurable
 
 Comprobado: 21 pruebas unitarias/integración con mocks del proyecto, typecheck, lint de archivos R2 y build. El lint global presenta advertencia preexistente por `next-env.d.ts` ignorado. No se ha probado WhatsApp real ni persistencia real de sesiones/claims; faltan los adaptadores R1 y conexión HTTP R3. La confirmación frente a edición concurrente de precios requiere comparación atómica de R1 antes de habilitarla.
 
-### Segunda entrega R2 — integración con R1
+### Segunda entrega R2 — integración con R1 (histórico; ver estado vigente arriba)
 
 Integrado `main` con migración 004. Conversación de alta con nombre/giro explícitos y confirmación firmada ligada al remitente. Adaptador real de lookup/intérprete y confirmaciones `draftId + quoteVersion`; resumen desde quote persistida, aviso de precio cambiado y rechazo de versión antigua. Composición `createRole2Service` lista para transporte R3.
 
 Adaptadores Supabase de procesamiento durable y sesiones/enlaces entregados. SQL propuesto en `src/modules/auth/storage/role2.sql` para revisión y aplicación por R1; no aplicado local ni remoto. Faltan prueba real de esos RPC/tablas, worker de recuperación autónoma, montaje HTTP/login R3 y recepción/respuesta real Infobip. Sustituye los pendientes de lookup/intérprete/cotización señalados en la primera entrega; persisten los de infraestructura.
+
+**Tickets, primera etapa:** extracción estructurada OpenAI y revisión con elección explícita VENTA/COMPRA/GASTO implementadas; no producen operaciones contables. Ventas/gastos conservan confirmación textual; registro de compras pendiente. 110 pruebas y webhook local con Supabase real aprobados, HTTP externos simulados. Falta aceptación externa y configuración operativa. Ver [tickets](../receipt-interpretation.md).

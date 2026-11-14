@@ -4,11 +4,11 @@
 
 ## Decisión vigente — almacenamiento multimedia
 
-**Audios e imágenes se almacenarán en Supabase Storage privado.** No configurar AWS S3 para el MVP; queda como alternativa futura. Adaptador de carga/lectura implementado, metadatos en `business_media`, buckets `business-audio` y `business-images`. Migración **008 aplicada solo localmente; pendiente en remoto**. El bootstrap HTTP admite `WHATSAPP_AUDIO_ENABLED=true` para lector Supabase + OpenAI, pero el parser/descarga de audio real Infobip sigue pendiente. Ver `docs/media-storage.md`.
+**Audios e imágenes se almacenarán en Supabase Storage privado.** No configurar AWS S3 para el MVP; queda como alternativa futura. Adaptador de carga/lectura implementado, metadatos en `business_media`, buckets `business-audio` y `business-images`. Migración **008 aplicada y comprobada localmente y en microai-dev**. El bootstrap HTTP admite `WHATSAPP_AUDIO_ENABLED=true` para lector Supabase + OpenAI, y R2 ya conecta la descarga de AUDIO/IMAGE según contrato del SDK; falta contrastar el evento real y su enrutamiento. Tickets: extracción/revisión con elección explícita de tipo; ver `docs/receipt-interpretation.md`. Ver `docs/media-storage.md`.
 
 ## Estado más reciente — migraciones alojadas comprobadas
 
-Las migraciones **001–007 ya están aplicadas en `microai-dev`** (`hfcetxrktdorebepttof`). El dry-run posterior no tiene pendientes. La comprobación SQL transaccional remota pasó y revirtió sus fixtures; hay 11 tablas con RLS y las funciones privilegiadas no son ejecutables por `anon`/`authenticated`. Ver el cierre al final de este documento. Las menciones anteriores a remoto pendiente describen el estado histórico. El despliegue HTTPS y WhatsApp real siguen pendientes.
+Las migraciones **001–008 ya están aplicadas en `microai-dev`** (`hfcetxrktdorebepttof`). El dry-run posterior no tiene pendientes. La comprobación SQL transaccional remota pasó y revirtió sus fixtures; hay 12 tablas públicas con RLS y las funciones privilegiadas no son ejecutables por `anon`/`authenticated`. Ver el cierre al final de este documento. Las menciones anteriores a remoto pendiente describen el estado histórico. El despliegue HTTPS y WhatsApp real siguen pendientes.
 
 ## Proyecto y objetivo
 
@@ -246,3 +246,14 @@ El usuario prefiere español claro, acciones concretas y continuidad autónoma. 
 - 008 aplicada únicamente localmente. No se desplegó remoto ni se contactó Infobip/OpenAI real. Imágenes pueden almacenarse; OCR sigue pendiente.
 - Validación: tipos, lint, 89 pruebas, build y prueba con Storage/PostgreSQL/Auth locales reales. Incluye audio/imagen, acceso público/anon/authenticated denegado, identidad, reintentos, cargas simultáneas y posterior venta confirmada. OpenAI y envío Infobip simulados. Se limpian usuario Auth, archivos y registros de prueba.
 - Guía fuente de la decisión y siguientes pasos: `docs/media-storage.md`; contratos actualizados para R1/R2/R3.
+
+## Cierre de pendientes multimedia e inicio de tickets
+
+- Usuario autorizó aplicar 008 en remoto y conectar descarga multimedia. También pidió iniciar interpretación de tickets; confirmó ambos tipos (ventas y compras/gastos), preguntando el tipo antes de registrar.
+- 008 aplicada a microai-dev tras revisar dry-run. Buckets privados/límites comprobados, business_media con RLS y sin permisos anon/authenticated; ambas políticas Storage restrictivas presentes. Dry-run sin pendientes. Aceptación SQL remota con rollback aprobada. No se subieron archivos al Storage alojado durante estas comprobaciones.
+- Parser Infobip reconoce legacy AUDIO/IMAGE con URL, contrastado con modelos del SDK oficial. Ingestor valida origen y ruta de cuenta, descarga con límite/timeout, valida MIME/firma y guarda en Supabase; reintentos reutilizan referencia. Los CDN deben autorizarse explícitamente; nunca reciben la API key. Proceso dentro del claim durable y después de resolver alta/identidad.
+- Tickets: `openai-receipts.ts` usa Responses estructurado, store:false, modelo configurable gpt-6.1-sol por defecto. Extrae campos y advertencias sin comandos/herramientas. Muestra revisión y `TIPO TICKET <token> VENTA|COMPRA|GASTO`, ligado a remitente/negocio y expiración. Clasificación informativa: no crea operaciones. Ventas/gastos siguen por texto con borrador/confirmación; compras/entrada de inventario siguen pendientes. No hay deduplicación por ticket físico ni conversión automática a contabilidad.
+- Flags false por defecto: WHATSAPP_AUDIO_ENABLED y WHATSAPP_RECEIPTS_ENABLED. Variables nuevas OPENAI_RECEIPT_MODEL e INFOBIP_MEDIA_REDIRECT_ORIGINS. R3 ya compone descarga/almacenamiento/extractores cuando se habilitan. No se cambiaron variables reales ni se desplegó app.
+- Validación: tipos, lint, 110 pruebas, build y webhook local completo con Supabase DB/Storage/Auth reales; HTTP externos Infobip/OpenAI simulados. Audio no descuenta hasta aprobación; ticket/clasificación no crean ventas/gastos. Replays evitan repetir IA. Fixtures limpiados.
+- Bloqueo externo comprobado sin imprimir secretos: no hay OPENAI_API_KEY ni credenciales Infobip operativas configuradas en el entorno revisado, ni vínculo .vercel local. WhatsApp/OpenAI reales, precisión, costo y latencia no comprobados. Revisar el payload real y orígenes antes de activar flags. No pedir claves por chat.
+- Guía vigente: docs/receipt-interpretation.md. Trabajo lento/lotes grandes requieren cola/worker con renovación pendiente; retención y limpieza de huérfanos siguen pendientes.

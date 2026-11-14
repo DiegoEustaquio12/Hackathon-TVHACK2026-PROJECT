@@ -7,6 +7,8 @@ import { createRole2Service } from '../src/modules/orchestration/service';
 import { createConversation } from '../src/modules/orchestration/conversation';
 import { createConversationRepositories } from '../src/modules/orchestration/repositories';
 import { createAudioPreparation } from '../src/modules/interpretation/audio';
+import { createInfobipMediaIngestor } from '../src/modules/messaging/infobip-media';
+import { createOpenAIReceiptExtractor } from '../src/modules/media/openai-receipts';
 import { createOpenAIAudioTranscriber } from '../src/modules/media/openai-transcriber';
 import { createDurableProcessing } from '../src/modules/messaging/processing';
 import { createSupabaseProcessingStore } from '../src/modules/messaging/supabase-processing';
@@ -131,6 +133,40 @@ it.skipIf(process.env.RUN_LOCAL_SUPABASE_TESTS !== 'true')('persists the real we
     await send('audio-confirm-repeat',command(audioSummary));
     expect((await client.from('sales').select('id').eq('business_id',businessId)).data).toHaveLength(3);
     expect(Number((await client.from('products').select('stock').eq('id',product.id).single()).data?.stock)).toBe(5);
+    // Full authenticated inbound media -> private Storage -> AI fixture -> durable reply.
+    const downloaded=vi.fn<typeof fetch>(async input=>{
+      const isImage=String(input).endsWith('/ticket-image');
+      return new Response(new Uint8Array(isImage?imageBytes:voiceBytes),{headers:{'content-type':isImage?'image/png':'audio/ogg'}});
+    });
+    const extracted={readable:true,merchant:'Fixture proveedor',date:null,currency:'MXN',total_cents:2500,
+      items:[{description:'Coca 600 ml',quantity:1,unit_price_cents:2500,line_total_cents:2500}],warnings:[]};
+    const visionHttp=vi.fn<typeof fetch>(async()=>Response.json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(extracted)}]}]}));
+    const mediaHandler=createRole2Service({client,baseUrl:'https://fixture.api.infobip.com',apiKey:'fixture',sender:recipient,
+      webhookUsername:username,webhookPassword:password,onboardingSecret:'s'.repeat(32),
+      audio:{reader:createSupabaseAudioReader(mediaStore),transcriber:createOpenAIAudioTranscriber({apiKey:'fixture'},transcribeHttp)},
+      receipts:{reader:mediaStore,extractor:createOpenAIReceiptExtractor({apiKey:'fixture'},visionHttp)},
+      ingestMedia:createInfobipMediaIngestor({baseUrl:'https://fixture.api.infobip.com',apiKey:'fixture',sender:recipient},mediaStore,downloaded)});
+    const received=new Date().toISOString();
+    const incoming=async(id:string,type:string,text?:string)=>{
+      const response=await mediaHandler({rawBody:JSON.stringify({results:[{messageId:`${prefix}-${id}`,from:sender,to:recipient,receivedAt:received,
+        message:{type,...(type==='TEXT'?{text}:{url:`https://fixture.api.infobip.com/whatsapp/1/senders/${recipient}/media/${type==='IMAGE'?'ticket-image':'voice-audio'}`})}}]}),
+        headers:new Headers({'content-type':'application/json',authorization:`Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`})});
+      expect(response.status).toBe(200);return replies.at(-1)!;
+    };
+    const incomingAudio=await incoming('provider-audio','AUDIO');
+    expect(incomingAudio).toContain('No se ha registrado la venta');
+    expect((await client.from('sales').select('id').eq('business_id',businessId)).data).toHaveLength(3);
+    expect(await incoming('provider-audio','AUDIO')).toBe(incomingAudio);
+    expect(downloaded).toHaveBeenCalledTimes(1);
+    await incoming('approve-provider-audio','TEXT',command(incomingAudio));
+    expect((await client.from('sales').select('id').eq('business_id',businessId)).data).toHaveLength(4);
+    const incomingTicket=await incoming('provider-image','IMAGE');
+    expect(incomingTicket).toContain('Lectura preliminar');
+    const classify=incomingTicket.split('\n').find(line=>line.startsWith('TIPO TICKET '))!;
+    expect(await incoming('classify-ticket','TEXT',classify.replace(/VENTA$/,'COMPRA'))).toContain('todavía no están implementadas');
+    await incoming('provider-image','IMAGE');expect(visionHttp).toHaveBeenCalledTimes(1);
+    expect((await client.from('sales').select('id').eq('business_id',businessId)).data).toHaveLength(4);
+    expect((await client.from('expenses').select('id').eq('business_id',businessId)).data).toHaveLength(0);
     const expense=await send('expense','Gasté 50 en luz');
     const expenseCommand=expense.split('\n')[1].replace('Responde ','');
     await send('cancel-expense','CANCELAR GASTO');
@@ -145,6 +181,13 @@ it.skipIf(process.env.RUN_LOCAL_SUPABASE_TESTS !== 'true')('persists the real we
     }
     // Explicit order respects the private draft foreign keys. No real user data.
     await client.from('r2_events').delete().like('event_key',`infobip:${prefix}%`);
+    if(businessId) {
+      const allMedia=await client.from('business_media').select('bucket_id,storage_key').eq('business_id',businessId);
+      if(allMedia.error) throw allMedia.error;
+      for(const row of allMedia.data??[]) {
+        if(!storedObjects.some(object=>object.key===row.storage_key)) storedObjects.push({bucket:row.bucket_id,key:row.storage_key});
+      }
+    }
     for(const object of storedObjects) {
       const removed=await client.storage.from(object.bucket).remove([object.key]);
       if(removed.error) throw removed.error;

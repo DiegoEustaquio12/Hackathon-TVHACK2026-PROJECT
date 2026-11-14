@@ -1,9 +1,12 @@
 export type WhatsAppActor = { businessId: string; verifiedSender: string; channel: 'whatsapp' };
 export type InboundMessage = {
   provider: 'infobip'; providerMessageId: string; from: string; to: string;
-  receivedAt: string; kind: 'text' | 'audio' | 'unsupported'; text?: string;
+  receivedAt: string; kind: 'text' | 'audio' | 'image' | 'unsupported'; text?: string;
   /** Internal only: attached by an authenticated adapter after private storage/ownership validation. */
   audio?: { storageKey: string; mimeType: string };
+  image?: { storageKey: string; mimeType: string };
+  /** Provider URL from authenticated webhook; not a trusted storage reference. */
+  providerMedia?: { url: string; kind: 'audio' | 'image' };
 };
 export interface MessagingProvider {
   sendText(input: { to: string; text: string; receivedAt: string; messageId: string }): Promise<void>;

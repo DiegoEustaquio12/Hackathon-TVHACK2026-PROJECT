@@ -39,3 +39,5 @@ Fuentes del adaptador: https://www.infobip.com/docs/developer-resources/api-fund
 ## Almacenamiento multimedia vigente
 
 Supabase Storage privado para audios e imágenes. R1 ya entrega carga/lectura por actor en `media/supabase-storage.ts` y migración 008 (local). R2 debe descargar desde Infobip con límites y guardar mediante `save`, entregando la referencia interna al pipeline. HTTP compone lector y transcriptor con `WHATSAPP_AUDIO_ENABLED=true`; parser de audio real aún pendiente. S3 no es dependencia. Ver `docs/media-storage.md`.
+
+Actualización multimedia: 008 ya está aplicada y comprobada en microai-dev. Descarga Infobip AUDIO/IMAGE y primera extracción/revisión de tickets implementadas, con flags desactivados por defecto. Antes de producción faltan credenciales, HTTPS/enrutamiento y comprobar evento/redirecciones reales. La prueba local usa Supabase DB/Storage/Auth reales y HTTP externos simulados; no equivale a WhatsApp real. Ver `docs/receipt-interpretation.md` (desde docs: `receipt-interpretation.md`).

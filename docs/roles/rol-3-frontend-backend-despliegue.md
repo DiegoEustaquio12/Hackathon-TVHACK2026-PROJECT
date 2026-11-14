@@ -1,6 +1,6 @@
 # Rol 3 — Frontend, backend HTTP y despliegue
 
-**Decisión vigente de almacenamiento:** audios e imágenes en **Supabase Storage privado**; AWS S3 queda para una posible migración futura. R1 ya implementó carga/lectura y migración 008 (solo local); R2 conecta descarga/normalización real de Infobip; R3 configura el bootstrap y coordina publicación. Detalles y límites en [almacenamiento multimedia](../media-storage.md).
+**Decisión vigente de almacenamiento:** audios e imágenes en **Supabase Storage privado**; AWS S3 queda para una posible migración futura. R1 ya implementó carga/lectura y migración 008 (local y remoto); R2 ya conecta descarga/normalización AUDIO/IMAGE según SDK, pendiente de aceptación externa; R3 configura el bootstrap y coordina publicación. Detalles y límites en [almacenamiento multimedia](../media-storage.md).
 
 
 ## Objetivo actual
@@ -47,3 +47,5 @@ El endpoint entrega un evento autenticado por R2 al orquestador. Reportar prueba
 ## Después del recorrido principal
 
 Panel de distribuidores, pedidos, acceso web complementario y mejoras visuales. No retrasar la URL pública requerida para WhatsApp por terminar esas pantallas.
+
+**Tickets, primera etapa:** extracción estructurada OpenAI y revisión con elección explícita VENTA/COMPRA/GASTO implementadas; no producen operaciones contables. Ventas/gastos conservan confirmación textual; registro de compras pendiente. 110 pruebas y webhook local con Supabase real aprobados, HTTP externos simulados. Falta aceptación externa y configuración operativa. Ver [tickets](../receipt-interpretation.md).
